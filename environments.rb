@@ -6,7 +6,7 @@ require 'sinatra/activerecord'
 configure :development do
   ActiveRecord::Base.establish_connection(
     adapter: 'sqlite3',
-    database: 'db/time_caddy.sqlite3.db'
+    database: 'db/time_caddy.sqlite3.db',
   )
 end
 

@@ -11,6 +11,7 @@ gem 'spring'
 gem 'unicorn'
 
 group :development, :test do
+  gem 'rerun'
   gem 'rspec'
   gem 'rubocop'
   gem 'sqlite3'

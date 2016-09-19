@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require 'sinatra'
-require 'sinatra/activerecord'
+require 'sinatra/base'
 require './environments'
 
 class TimeCaddy < Sinatra::Base

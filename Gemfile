@@ -3,10 +3,13 @@
 source 'https://rubygems.org'
 
 gem 'activerecord'
+gem 'bcrypt'
+gem 'haml'
 gem 'rack'
 gem 'rake'
 gem 'sinatra'
 gem 'sinatra-activerecord'
+gem 'sinatra-flash'
 gem 'spring'
 gem 'unicorn'
 

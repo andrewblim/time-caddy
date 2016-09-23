@@ -1,0 +1,16 @@
+%html
+  %head
+    %title time-caddy login
+  %body
+    - if flash[:login]
+      %p= flash[:login]
+    %p Log in:
+    %form{action: '/login', method: 'post'}
+      %div
+        %label{for: "username"} Username
+        %input#username{type: "text", name: "username"}
+      %div
+        %label{for: "username"} Password
+        %input#username{type: "password", name: "password"}
+      %div
+        %input{type: "submit", value: "Login"}

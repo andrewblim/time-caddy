@@ -5,6 +5,7 @@ require 'haml'
 require 'sinatra/base'
 require 'sinatra/flash'
 require './environments'
+require './app/models/user'
 
 class TimeCaddy < Sinatra::Base
   register Sinatra::ActiveRecordExtension
@@ -32,7 +33,7 @@ class TimeCaddy < Sinatra::Base
       flash[:signup] = "There is already a user with username #{params[:username]}"
       redirect '/signup'
     elsif User.find_by(email: params[:email])
-      flash[:signup] = "There is already a user with username #{params[:username]}"
+      flash[:signup] = "There is already a user with email #{params[:email]}"
       redirect '/signup'
     else
       password_salt = BCrypt::Engine.generate_salt
@@ -43,6 +44,7 @@ class TimeCaddy < Sinatra::Base
         password_hash: password_hash,
         password_salt: password_salt,
       )
+      session[:username] = params[:username]
       flash[:login] = "User creation for username #{params[:username]} was successful!"
       redirect '/login'
     end

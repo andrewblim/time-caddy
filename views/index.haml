@@ -4,8 +4,10 @@
   %body
     - if logged_in?
       %p
-        = "Hello, #{username}."
-        %a{href: "/logout"} Log out. 
+        = "Hello, #{session[:username]}."
+        %form{action: '/logout', method: 'post'}
+          %div
+            %input{type: "submit", value: "Logout"}
     - else
       %p
         Hello, anonymous.

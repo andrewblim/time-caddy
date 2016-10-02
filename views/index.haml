@@ -2,12 +2,19 @@
   %head
     %title time-caddy
   %body
-    - if logged_in?
+    - if logged_in_user
       %p
-        = "Hello, #{session[:username]}."
+        = "Hello, #{logged_in_user.username}."
         %form{action: '/logout', method: 'post'}
           %div
             %input{type: "submit", value: "Logout"}
+      %p
+        Add an entry:
+        %textarea
+      %p
+        Current entries:
+        - logged_in_user.log_entries.each do |log_entry|
+          = "Log entry #{log_entry.id}"
     - else
       %p
         Hello, anonymous.

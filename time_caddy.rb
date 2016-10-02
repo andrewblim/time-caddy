@@ -5,7 +5,9 @@ require 'haml'
 require 'sinatra/base'
 require 'sinatra/flash'
 require './environments'
-require './app/models/user'
+
+require 'require_all'
+require_all 'app/models/**/*.rb'
 
 class TimeCaddy < Sinatra::Base
   register Sinatra::ActiveRecordExtension
@@ -13,6 +15,14 @@ class TimeCaddy < Sinatra::Base
   enable :sessions
 
   set :haml, format: :html5
+
+  before do
+    @user = User.find_by(username: session[:username]) if session[:username]
+  end
+
+  def logged_in_user
+    @user
+  end
 
   get '/' do
     haml :index
@@ -50,12 +60,8 @@ class TimeCaddy < Sinatra::Base
     end
   end
 
-  def logged_in?
-    session[:username] ? true : false
-  end
-
   get '/login' do
-    if logged_in?
+    if logged_in_user
       redirect '/'
     else
       haml :login

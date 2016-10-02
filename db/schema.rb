@@ -10,7 +10,19 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160920124700) do
+ActiveRecord::Schema.define(version: 20160930130319) do
+
+  create_table "log_entries", force: :cascade do |t|
+    t.integer  "user_id",                 null: false
+    t.datetime "start_at",                null: false
+    t.datetime "finish_at",               null: false
+    t.string   "text",      limit: 65535, null: false
+  end
+
+  create_table "tags", force: :cascade do |t|
+    t.string "name", limit: 80, null: false
+    t.index ["name"], name: "index_tags_on_name", unique: true
+  end
 
   create_table "users", force: :cascade do |t|
     t.string "username",      limit: 40, null: false

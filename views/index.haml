@@ -2,6 +2,8 @@
   %head
     %title time-caddy
   %body
+    - if flash[:login]
+      %p= flash[:login]
     - if logged_in_user
       %p
         = "Hello, #{logged_in_user.username}."
@@ -13,8 +15,21 @@
         %textarea
       %p
         Current entries:
-        - logged_in_user.log_entries.each do |log_entry|
-          = "Log entry #{log_entry.id}"
+        %table
+          %th
+            %td ID
+            %td Start at
+            %td Finish at
+            %td Description
+            %td Tags
+          %tr
+            %td
+              - logged_in_user.log_entries.each do |log_entry|
+                %td= "#{log_entry.id}"
+                %td= "#{log_entry.start_at}"
+                %td= "#{log_entry.finish_at}"
+                %td= "#{log_entry.description}"
+                %td= "#{log_entry.tags.map(&:name)}"
     - else
       %p
         Hello, anonymous.

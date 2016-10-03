@@ -5,7 +5,7 @@ class CreateLogEntries < ActiveRecord::Migration[4.2]
       t.integer :user_id, null: false
       t.datetime :start_at, null: false
       t.datetime :finish_at, null: false
-      t.string :text, null: false, limit: 65535
+      t.string :description, null: false, limit: 65535
     end
   end
 end

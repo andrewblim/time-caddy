@@ -13,10 +13,17 @@
 ActiveRecord::Schema.define(version: 20160930130319) do
 
   create_table "log_entries", force: :cascade do |t|
-    t.integer  "user_id",                 null: false
-    t.datetime "start_at",                null: false
-    t.datetime "finish_at",               null: false
-    t.string   "text",      limit: 65535, null: false
+    t.integer  "user_id",                   null: false
+    t.datetime "start_at",                  null: false
+    t.datetime "finish_at",                 null: false
+    t.string   "description", limit: 65535, null: false
+  end
+
+  create_table "log_entries_tags", id: false, force: :cascade do |t|
+    t.integer "log_entry_id"
+    t.integer "tag_id"
+    t.index ["log_entry_id"], name: "index_log_entries_tags_on_log_entry_id"
+    t.index ["tag_id"], name: "index_log_entries_tags_on_tag_id"
   end
 
   create_table "tags", force: :cascade do |t|

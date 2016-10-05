@@ -1,16 +1,21 @@
+!!! 5
 %html
   %head
     %title time-caddy login
+    = haml :_bootstrap_header
   %body
-    - if flash[:login]
-      %p= flash[:login]
-    %p Log in:
-    %form{action: '/login', method: 'post'}
-      %div
-        %label{for: "username"} Username
-        %input#username{type: "text", name: "username"}
-      %div
-        %label{for: "username"} Password
-        %input#username{type: "password", name: "password"}
-      %div
-        %input{type: "submit", value: "Login"}
+    = haml :_navbar, locals: { user: logged_in_user, hide_login: true }
+
+    .container-fluid
+      - if flash[:login]
+        %p= flash[:login]
+      %p Log in:
+      %form{action: '/login', method: 'post'}
+        %div
+          %label{for: 'username'} Username
+          %input#username{type: 'text', name: 'username'}
+        %div
+          %label{for: 'username'} Password
+          %input#username{type: 'password', name: 'password'}
+        %div
+          %input{type: 'submit', value: 'Login'}

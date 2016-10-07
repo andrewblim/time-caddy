@@ -15,6 +15,7 @@ class TimeCaddy < Sinatra::Base
   enable :sessions
 
   set :haml, format: :html5
+  set :public_folder, 'public'
 
   before do
     @user = User.find_by(username: session[:username]) if session[:username]

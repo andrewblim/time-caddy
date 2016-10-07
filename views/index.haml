@@ -3,6 +3,7 @@
   %head
     %title time-caddy
     = haml :_bootstrap_header
+    %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
     = haml :_navbar, locals: { user: logged_in_user }
 

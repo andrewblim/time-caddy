@@ -12,6 +12,8 @@ gem 'sinatra'
 gem 'sinatra-activerecord'
 gem 'sinatra-flash'
 gem 'spring'
+gem 'tzinfo'
+gem 'tzinfo-data'
 gem 'unicorn'
 
 group :development, :test do

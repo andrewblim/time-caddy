@@ -20,6 +20,9 @@
         .form-element
           %input#username{type: 'password', name: 'password', placeholder: 'Password'}
         .form-element
-          %label{for: 'default_time_zone'} Default time zone:
+          %label{for: 'default_tz'} Default time zone:
+          %select{name: 'default_tz'}
+            - TZInfo::Timezone.all.each do |tz|
+              %option{value: tz.name}= tz.friendly_identifier
         .form-element
           %input{type: 'submit', value: 'Signup'}

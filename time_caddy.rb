@@ -58,6 +58,7 @@ class TimeCaddy < Sinatra::Base
         email: params[:email],
         password_hash: password_hash,
         password_salt: password_salt,
+        default_tz: params[:default_tz],
       )
       session[:username] = params[:username]
       flash[:login] = "User creation for username #{params[:username]} was successful!"

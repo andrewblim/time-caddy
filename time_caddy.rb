@@ -29,6 +29,10 @@ class TimeCaddy < Sinatra::Base
     haml :index
   end
 
+  get '/about' do
+    haml :about
+  end
+
   # h/t to https://gist.github.com/amscotti/1384524 for getting me going on the
   # basic framework here
 

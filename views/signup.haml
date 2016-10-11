@@ -2,7 +2,15 @@
   %head
     %title time-caddy signup
     = haml :_bootstrap_header
+    = haml :_jquery
+    %link{rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css'}
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
+    %script{src: 'https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js'}
+    %script{src: 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js'}
+    :javascript
+      $(document).ready(function() {
+        $("#default_tz").select2();
+      });
   %body
     = haml :_navbar, locals: { user: logged_in_user, hide_login: true }
     .container-fluid
@@ -19,7 +27,7 @@
           .form-group
             %label{for: 'username'} Username:
             %input#username.form-control{type: 'text', name: 'username'}
-            %small This is how you will appear in the app and is the name by which others can refer to you in their posts. 1-40 characters, alphanumeric, underscores, or hyphens only.
+            %small This is how you will appear in the app and is the name by which others can refer to you in their posts. 1-40 characters. Alphanumerics, underscores, or hyphens only.
           .form-group
             %label{for: 'email'} Email:
             %input#email.form-control{type: 'email', name: 'email'}

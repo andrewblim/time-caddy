@@ -1,3 +1,6 @@
 .ruby-version
 config/database.yml
+bower_components/
 db/**/*.db
+node_modules/
+public/scripts

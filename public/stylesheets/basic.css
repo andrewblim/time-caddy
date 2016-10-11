@@ -1,1 +1,4 @@
-.form-element { padding: 5px 10px }
+.form-explanation {
+  font-size: 85%;
+  margin: 1em 0.5em;
+}

@@ -1,0 +1,21 @@
+{
+  "name": "time-caddy",
+  "homepage": "https://github.com/andrewblim/time-caddy",
+  "authors": [
+    "Andrew Lim <andrew.b.lim@gmail.com>"
+  ],
+  "description": "",
+  "main": "",
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jstimezonedetect": "^1.0.5"
+  }
+}

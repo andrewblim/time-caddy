@@ -19,7 +19,7 @@
           .form-group
             %label{for: 'username'} Username:
             %input#username.form-control{type: 'text', name: 'username'}
-            %small This is how you will appear in the system. Others can refer to you in their entries as @your-username.
+            %small This is how you will appear in the app and is the name by which others can refer to you in their posts. 1-40 characters, alphanumeric, underscores, or hyphens only.
           .form-group
             %label{for: 'email'} Email:
             %input#email.form-control{type: 'email', name: 'email'}
@@ -29,8 +29,8 @@
             %input#password.form-control{type: 'password', name: 'password'}
           .form-group
             %label{for: 'default_tz'} Default time zone:
-            %select{name: 'default_tz'}
+            %select#default_tz.form-control
               - TZInfo::Timezone.all.each do |tz|
                 %option{value: tz.name}= tz.friendly_identifier
           .form-group
-            %input#submit{type: 'submit', value: 'Signup'}
+            %input#submit.btn.btn-default{type: 'submit', value: 'Signup'}

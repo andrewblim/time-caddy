@@ -9,7 +9,7 @@ gulp.task('js', function (cb) {
     [
       gulp.src(mainBowerFiles()),
       plugins.uglify(),
-      gulp.dest('public/scripts')
+      gulp.dest('public/scripts/dist')
     ],
     cb
   );

@@ -6,12 +6,39 @@
     %link{rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css'}
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
     %script{src: 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js'}
-    %script{src: '/scripts/jstz.js'}
+    %script{src: '/scripts/dist/jstz.js'}
+    %script{src: '/scripts/dist/zxcvbn.js'}
     :javascript
-      $(document).ready(function() {
-        $("#default_tz").select2();
+      $(function() {
+        $("#default-tz").select2();
         tz_name = jstz.determine().name();
-        $("#default_tz").val(tz_name).trigger("change"); // need to validate against this selecting nothing
+        $("#default-tz").val(tz_name).trigger("change"); // need to validate against this selecting nothing
+
+        $("#password").on("input", function() {
+          if ($(this).val().length < 6) {
+            $("#password-status").text("🤔");
+            $("#password-status-explanation").text("At least 6 characters")
+          }
+          else {
+            security = zxcvbn($(this).val());
+            if (security.score <= 0) {
+              $("#password-status").text("🙁");
+              $("#password-status-explanation").text("Weak");
+            }
+            else if (security.score <= 2) {
+              $("#password-status").text("😐");
+              $("#password-status-explanation").text("OK");
+            }
+            else if (security.score <= 3) {
+              $("#password-status").text("🙂");
+              $("#password-status-explanation").text("Good");
+            }
+            else {
+              $("#password-status").text("😀");
+              $("#password-status-explanation").text("Great!");
+            }
+          }
+        });
       });
   %body
     = haml :_navbar, locals: { user: logged_in_user, hide_login: true }
@@ -36,20 +63,22 @@
             .form-explanation We will never give this out to anyone else. We only use it to contact you.
           .form-group
             %label{for: 'password'} Password
-            %input#password.form-control{type: 'password', name: 'password'}
-            .form-explanation At least 6 characters.
+            .input-group
+              %input#password.form-control{type: 'password', name: 'password'}
+              #password-status.input-group-addon 🤔
+            #password-status-explanation.form-explanation At least 6 characters.
           .form-group
-            %label{for: 'default_tz'} Default time zone
-            %select#default_tz.form-control
+            %label{for: 'default-tz'} Default time zone
+            %select#default-tz.form-control
               - utc_now = Time.now.utc
               - tz_with_offset = TZInfo::Timezone.all.map { |tz| [tz, tz.period_for_utc(utc_now).utc_total_offset / 3600.0] }
               - tz_with_offset.sort_by{ |x| [x[1], x[0]] }.each do |tz, offset|
                 %option{value: tz.name}= "#{tz.friendly_identifier} (#{offset > 0 ? '+' : ''}#{offset == offset.round ? offset.round : offset})"
             .form-explanation Enter the actual time zone you want, not just one with the same UTC offset, or your handling of adjustments like daylight savings may be wrong. You can change this later.
             .form-explanation
-              The offsets are with respect to
-              = "#{utc_now.to_s}."
-              This will vary by time of year due to adjustments.
+              The offsets listed are with respect to
+              = "#{utc_now.to_s},"
+              and vary by time of year due to adjustments for different time zones.
 
           .form-group
             %input#submit.btn.btn-default{type: 'submit', value: 'Sign me up'}

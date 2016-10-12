@@ -16,6 +16,7 @@
     "tests"
   ],
   "dependencies": {
-    "jstimezonedetect": "^1.0.5"
+    "jstimezonedetect": "^1.0.5",
+    "zxcvbn": "^4.4.0"
   }
 }

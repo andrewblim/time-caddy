@@ -18,6 +18,8 @@ GEM
     bond (0.5.1)
     concurrent-ruby (1.0.2)
     diff-lcs (1.2.5)
+    email_validator (1.6.0)
+      activemodel
     ffi (1.9.14)
     haml (4.0.4)
       tilt
@@ -109,6 +111,7 @@ PLATFORMS
 DEPENDENCIES
   activerecord
   bcrypt
+  email_validator
   haml
   pg
   rack

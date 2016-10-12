@@ -4,6 +4,7 @@ source 'https://rubygems.org'
 
 gem 'activerecord'
 gem 'bcrypt'
+gem 'email_validator'
 gem 'haml'
 gem 'rack'
 gem 'rake'

@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
-require 'bcrypt'
-require 'haml'
 require 'sinatra/base'
 require 'sinatra/flash'
+require 'haml'
 require './environments'
+
+require 'bcrypt'
+require 'email_validator'
 
 require 'require_all'
 require_all 'app/models/**/*.rb'
@@ -41,29 +43,42 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/signup' do
+    signup_errors = []
     if params[:username].blank? || params[:email].blank?
-      flash[:signup] = "You must specify a username and an email address"
-      redirect '/signup'
+      signup_errors << 'You must specify a username and an email address.'
+    elsif params[:username].length > 40
+      signup_errors << 'Your username cannot be longer than 40 characters.'
+    elsif params[:username] !~ /^[-_0-9A-Za-z]+$/
+      signup_errors << 'Your username must consist solely of alphanumeric characters, underscores, or hyphens.'
+    elsif params[:email].length > 60
+      signup_errors << 'Your email address cannot be longer than 60 characters.'
+    elsif !EmailValidator.valid?(params[:email])
+      signup_errors << 'Your email address was not recognized as a valid address.'
+    elsif params[:password].length < 6
+      signup_errors << 'Your password must be at least 6 characters long.'
     elsif User.find_by(username: params[:username])
-      flash[:signup] = "There is already a user with username #{params[:username]}"
-      redirect '/signup'
+      signup_errors << "There is already a user with username #{params[:username]}."
     elsif User.find_by(email: params[:email])
-      flash[:signup] = "There is already a user with email #{params[:email]}"
-      redirect '/signup'
-    else
-      password_salt = BCrypt::Engine.generate_salt
-      password_hash = BCrypt::Engine.hash_secret(params[:password], password_salt)
-      User.create(
-        username: params[:username],
-        email: params[:email],
-        password_hash: password_hash,
-        password_salt: password_salt,
-        default_tz: params[:default_tz],
-      )
-      session[:username] = params[:username]
-      flash[:login] = "User creation for username #{params[:username]} was successful!"
-      redirect '/login'
+      signup_errors << "There is already a user with email #{params[:email]}."
     end
+
+    unless signup_errors.blank?
+      flash[:signup_error] = signup_errors.join("\n")
+      redirect '/signup'
+    end
+
+    password_salt = BCrypt::Engine.generate_salt
+    password_hash = BCrypt::Engine.hash_secret(params[:password], password_salt)
+    User.create(
+      username: params[:username],
+      email: params[:email],
+      password_hash: password_hash,
+      password_salt: password_salt,
+      default_tz: params[:default_tz],
+    )
+    session[:username] = params[:username]
+    flash[:login] = "User creation for username #{params[:username]} was successful!"
+    redirect '/login'
   end
 
   get '/login' do

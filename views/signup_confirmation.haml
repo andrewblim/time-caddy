@@ -8,8 +8,8 @@
     = haml :_navbar, locals: { user: logged_in_user, hide_login: true }
     .container-fluid
       .col-md-6.col-md-offset-3
-        %h2 Signup successful
+        %h2 Confirmation email sent
         %p
           We have sent an email to
           = "#{@confirm_user.email}"
-          with instructions as to how to activate your account so that you can log in. 
+          with instructions as to how to activate your account so that you can log in.

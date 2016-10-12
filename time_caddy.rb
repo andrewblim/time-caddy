@@ -8,6 +8,7 @@ require './environments'
 
 require 'bcrypt'
 require 'email_validator'
+require 'pony'
 
 require 'require_all'
 require_all 'app/models/**/*.rb'
@@ -130,7 +131,7 @@ class TimeCaddy < Sinatra::Base
     elsif !@confirm_user.inactive_but_fresh?
       # only destroy on signup attempt, leave this as a GET
       signup_errors << "Your signup was more than #{INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} ago, at which point we "\
-                       "require a new signup. Please try signing up again."
+                       "deactivate it. Please try signing up again."
     end
 
     if !signup_errors.blank?
@@ -140,13 +141,19 @@ class TimeCaddy < Sinatra::Base
       flash[:login_alerts] = login_alerts
       redirect '/login'
     else
+      # TODO: stop people from sending these more than 1x a minute
       send_activation_email(@confirm_user)
       haml :signup_confirmation
     end
   end
 
   def send_activation_email(user)
-    # todo
+    Pony.mail(
+      from: 'placeholder@placeholder.com',
+      to: user.email,
+      subject: "Confirmation of new time-caddy account for username #{user.username}",
+      body: 'placeholder for now'
+    )
   end
 
   get '/login' do

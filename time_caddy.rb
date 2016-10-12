@@ -1,14 +1,17 @@
 # frozen_string_literal: true
 
+require 'sinatra'
+require 'sinatra/activerecord'
 require 'sinatra/base'
 require 'sinatra/config_file'
 require 'sinatra/flash'
 require 'haml'
-require './environments'
 
 require 'bcrypt'
 require 'email_validator'
 require 'pony'
+require 'redis'
+require 'redlock'
 
 require 'require_all'
 require_all 'app/models/**/*.rb'
@@ -21,7 +24,16 @@ class TimeCaddy < Sinatra::Base
   enable :sessions
 
   set :haml, format: :html5
-  set :public_folder, 'public'
+  configure  do
+    config_file 'config/app.yml'
+    redis_client = Redis.new(
+      host: settings.redis['host'],
+      port: settings.redis['port'],
+      db: settings.redis['db'],
+    )
+    set :redis_client, redis_client
+    set :redlock_client, Redlock::Client.new([redis_client])
+  end
 
   before do
     @user = User.find_by(username: session[:username]) if session[:username]
@@ -141,18 +153,20 @@ class TimeCaddy < Sinatra::Base
       flash[:login_alerts] = login_alerts
       redirect '/login'
     else
-      # TODO: stop people from sending these more than 1x a minute
-      send_activation_email(@confirm_user)
+      lock_info = settings.redlock_client.lock("signup_confirmation:#{@confirm_user.username}", 60_000)
+      if lock_info
+        send_activation_email(@confirm_user)
+      end
       haml :signup_confirmation
     end
   end
 
   def send_activation_email(user)
     Pony.mail(
-      from: 'placeholder@placeholder.com',
+      from: settings.activation_email,
       to: user.email,
       subject: "Confirmation of new time-caddy account for username #{user.username}",
-      body: 'placeholder for now'
+      body: 'placeholder for now',
     )
   end
 

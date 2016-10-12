@@ -1,5 +1,9 @@
 development:
-  activation_email: andrew.b.lim@gmail.com
+  activation_email: test@test.com
+  redis:
+    host: localhost
+    port: 6379
+    db: 0
 
 test:
 

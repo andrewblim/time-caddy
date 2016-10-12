@@ -44,17 +44,23 @@ class TimeCaddy < Sinatra::Base
 
   post '/signup' do
     signup_errors = []
-    if params[:username].blank? || params[:email].blank?
-      signup_errors << 'You must specify a username and an email address.'
+    if params[:username].blank?
+      signup_errors << 'You must specify a username.'
     elsif params[:username].length > 40
       signup_errors << 'Your username cannot be longer than 40 characters.'
     elsif params[:username] !~ /^[-_0-9A-Za-z]+$/
       signup_errors << 'Your username must consist solely of alphanumeric characters, underscores, or hyphens.'
+    end
+
+    if params[:email].blank?
+      signup_errors << 'You must specify an email address.'
     elsif params[:email].length > 60
       signup_errors << 'Your email address cannot be longer than 60 characters.'
     elsif !EmailValidator.valid?(params[:email])
       signup_errors << 'Your email address was not recognized as a valid address.'
-    elsif params[:password].length < 6
+    end
+
+    if params[:password].length < 6
       signup_errors << 'Your password must be at least 6 characters long.'
     elsif User.find_by(username: params[:username])
       signup_errors << "There is already a user with username #{params[:username]}."
@@ -62,8 +68,15 @@ class TimeCaddy < Sinatra::Base
       signup_errors << "There is already a user with email #{params[:email]}."
     end
 
+    # this shouldn't happen if the tz form is working properly, but just in case
+    begin
+      TZInfo::Timezone.get(params[:default_tz])
+    rescue TZInfo::InvalidTimezoneIdentifier
+      signup_errors << "The timezone #{params[:default_tz]} was not recognized as a valid tz timezone."
+    end
+
     unless signup_errors.blank?
-      flash[:signup_error] = signup_errors.join("\n")
+      flash[:signup_errors] = signup_errors
       redirect '/signup'
     end
 

@@ -3,11 +3,8 @@
   margin: 1em 0.5em;
 }
 
-.flash {
+.flash.signup-errors {
   margin: 1em 0em;
-}
-
-.flash.signup_error {
   padding: 1em;
   background-color: pink;
 }

@@ -6,6 +6,8 @@ class CreateUsers < ActiveRecord::Migration[4.2]
       t.string :email, limit: 60
       t.string :password_hash, null: false
       t.string :password_salt, null: false
+      t.datetime :signup_time, null: false
+      t.datetime :activation_time
       t.string :default_tz, limit: 60, null: false
     end
     add_index :users, :username, unique: true

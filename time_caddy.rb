@@ -62,10 +62,6 @@ class TimeCaddy < Sinatra::Base
 
     if params[:password].length < 6
       signup_errors << 'Your password must be at least 6 characters long.'
-    elsif User.find_by(username: params[:username])
-      signup_errors << "There is already a user with username #{params[:username]}."
-    elsif User.find_by(email: params[:email])
-      signup_errors << "There is already a user with email #{params[:email]}."
     end
 
     # this shouldn't happen if the tz form is working properly, but just in case
@@ -73,6 +69,32 @@ class TimeCaddy < Sinatra::Base
       TZInfo::Timezone.get(params[:default_tz])
     rescue TZInfo::InvalidTimezoneIdentifier
       signup_errors << "The timezone #{params[:default_tz]} was not recognized as a valid tz timezone."
+    end
+
+    # if a created but inactivated user is found with the same username or
+    # email, but the user is old, destroy them and carry on
+
+    if (user = User.find_by(username: params[:username]))
+      if user.active?
+        signup_errors << "There is already a user with username #{params[:username]}."
+      elsif user.inactive_but_fresh?
+        signup_errors << "There is already a not-yet-activated user with username #{params[:username]} created less "\
+                         "than #{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If you need the activation email "\
+                         "to be resent, <a href='/resend_activation_email/#{user.username}'>click here</a>."
+      else
+        user.destroy
+      end
+    end
+    if (user = User.find_by(email: params[:email]))
+      if user.active?
+        signup_errors << "There is already a user with email #{params[:email]}."
+      elsif user.inactive_but_fresh?
+        signup_errors << "There is already a not-yet-activated user with email #{params[:email]} created less than "\
+                         "than #{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If you need the activation email "\
+                         "to be resent, <a href='/resend_activation_email/#{user.username}'>click here</a>."
+      else
+        user.destroy
+      end
     end
 
     unless signup_errors.blank?
@@ -87,11 +109,43 @@ class TimeCaddy < Sinatra::Base
       email: params[:email],
       password_hash: password_hash,
       password_salt: password_salt,
+      creation_time: Time.now.utc,
+      activation_time: nil,
       default_tz: params[:default_tz],
     )
     session[:username] = params[:username]
-    flash[:login] = "User creation for username #{params[:username]} was successful!"
-    redirect '/login'
+    redirect "/signup_confirmation/#{user.username}"
+  end
+
+  get '/signup_confirmation/:username' do
+    signup_errors = []
+    login_alerts = []
+    @confirm_user = User.find_by(username: params[:username])
+    if @confirm_user.nil?
+      signup_errors << 'It looks like you hit the signup confirmation page somehow without the corresponding user '\
+                       'having been created! Please try signing up again.'
+    elsif @confirm_user.active?
+      login_alerts << "User #{@confirm_user.username} has already been activated and can log in and use the app."
+    elsif !@confirm_user.inactive_but_fresh?
+      # only destroy on signup attempt, leave this as a GET
+      signup_errors << "Your signup was more than #{INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} ago, at which point we "\
+                       "require a new signup. Please try signing up again."
+    end
+
+    if !signup_errors.blank?
+      flash[:signup_errors] = signup_errors
+      redirect '/signup'
+    elsif !login_alerts.blank?
+      flash[:login_alerts] = login_alerts
+      redirect '/login'
+    else
+      send_activation_email(user)
+      haml :signup_confirmation
+    end
+  end
+
+  def send_activation_email(user)
+    # todo
   end
 
   get '/login' do

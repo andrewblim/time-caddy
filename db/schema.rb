@@ -32,10 +32,13 @@ ActiveRecord::Schema.define(version: 20160930130319) do
   end
 
   create_table "users", force: :cascade do |t|
-    t.string "username",      limit: 40, null: false
-    t.string "email",         limit: 60
-    t.string "password_hash",            null: false
-    t.string "password_salt",            null: false
+    t.string   "username",        limit: 40, null: false
+    t.string   "email",           limit: 60
+    t.string   "password_hash",              null: false
+    t.string   "password_salt",              null: false
+    t.datetime "signup_time",                null: false
+    t.datetime "activation_time"
+    t.string   "default_tz",      limit: 60, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["username"], name: "index_users_on_username", unique: true
   end

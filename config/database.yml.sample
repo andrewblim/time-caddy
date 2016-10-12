@@ -1,5 +1,9 @@
 development:
   adapter: sqlite3
-  database: 
+  database: db/time_caddy.db
   pool: 5
   timeout: 5000
+
+test:
+
+production:

@@ -5,10 +5,10 @@ class User < ActiveRecord::Base
   INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS = 7
 
   def active?
-    !signup_time.nil?
+    !activation_time.nil?
   end
 
   def inactive_but_fresh?(as_of = Time.now)
-    signup_time.advance(days: INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS) > as_of
+    !active? && signup_time.advance(days: INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS) > as_of
   end
 end

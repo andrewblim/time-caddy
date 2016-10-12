@@ -8,3 +8,9 @@
   padding: 1em;
   background-color: pink;
 }
+
+.flash.login-alerts {
+  margin: 1em 0em;
+  padding: 1em;
+  background-color: lightyellow;
+}

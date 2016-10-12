@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'sinatra/base'
+require 'sinatra/config_file'
 require 'sinatra/flash'
 require 'haml'
 require './environments'
@@ -13,7 +14,9 @@ require_all 'app/models/**/*.rb'
 
 class TimeCaddy < Sinatra::Base
   register Sinatra::ActiveRecordExtension
+  register Sinatra::ConfigFile
   register Sinatra::Flash
+
   enable :sessions
 
   set :haml, format: :html5
@@ -80,18 +83,17 @@ class TimeCaddy < Sinatra::Base
       elsif user.inactive_but_fresh?
         signup_errors << "There is already a not-yet-activated user with username #{params[:username]} created less "\
                          "than #{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If you need the activation email "\
-                         "to be resent, <a href='/resend_activation_email/#{user.username}'>click here</a>."
+                         "to be resent, <a href='/signup_confirmation/#{user.username}'>click here</a>."
       else
         user.destroy
       end
-    end
-    if (user = User.find_by(email: params[:email]))
+    elsif (user = User.find_by(email: params[:email]))
       if user.active?
         signup_errors << "There is already a user with email #{params[:email]}."
       elsif user.inactive_but_fresh?
         signup_errors << "There is already a not-yet-activated user with email #{params[:email]} created less than "\
                          "than #{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If you need the activation email "\
-                         "to be resent, <a href='/resend_activation_email/#{user.username}'>click here</a>."
+                         "to be resent, <a href='/signup_confirmation/#{user.username}'>click here</a>."
       else
         user.destroy
       end
@@ -104,16 +106,15 @@ class TimeCaddy < Sinatra::Base
 
     password_salt = BCrypt::Engine.generate_salt
     password_hash = BCrypt::Engine.hash_secret(params[:password], password_salt)
-    User.create(
+    user = User.create(
       username: params[:username],
       email: params[:email],
       password_hash: password_hash,
       password_salt: password_salt,
-      creation_time: Time.now.utc,
+      signup_time: Time.now.utc,
       activation_time: nil,
       default_tz: params[:default_tz],
     )
-    session[:username] = params[:username]
     redirect "/signup_confirmation/#{user.username}"
   end
 
@@ -122,8 +123,8 @@ class TimeCaddy < Sinatra::Base
     login_alerts = []
     @confirm_user = User.find_by(username: params[:username])
     if @confirm_user.nil?
-      signup_errors << 'It looks like you hit the signup confirmation page somehow without the corresponding user '\
-                       'having been created! Please try signing up again.'
+      signup_errors << 'It looks like you hit the signup confirmation page for a user that has not been '\
+                       'created! Please try signing up again.'
     elsif @confirm_user.active?
       login_alerts << "User #{@confirm_user.username} has already been activated and can log in and use the app."
     elsif !@confirm_user.inactive_but_fresh?
@@ -139,7 +140,7 @@ class TimeCaddy < Sinatra::Base
       flash[:login_alerts] = login_alerts
       redirect '/login'
     else
-      send_activation_email(user)
+      send_activation_email(@confirm_user)
       haml :signup_confirmation
     end
   end

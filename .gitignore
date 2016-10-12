@@ -1,6 +1,7 @@
 .ruby-version
-config/database.yml
 bower_components/
+config/app.yml
+config/database.yml
 db/**/*.db
 node_modules/
 public/scripts/dist

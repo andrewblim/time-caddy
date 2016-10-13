@@ -11,4 +11,13 @@ class User < ActiveRecord::Base
   def inactive_but_fresh?(as_of = Time.now)
     !active? && signup_time.advance(days: INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS) > as_of
   end
+
+  def activate
+    return false if active?
+    update(activation_time: Time.now)
+  end
+
+  def activate!
+    raise 'User already activated' unless activate
+  end
 end

@@ -35,6 +35,14 @@ class TimeCaddy < Sinatra::Base
     set :redlock_client, Redlock::Client.new([redis_client])
   end
 
+  def redis_client
+    settings.redis_client
+  end
+
+  def redlock_client
+    settings.redlock_client
+  end
+
   before do
     @user = User.find_by(username: session[:username]) if session[:username]
   end
@@ -153,20 +161,28 @@ class TimeCaddy < Sinatra::Base
       flash[:login_alerts] = login_alerts
       redirect '/login'
     else
-      lock_info = settings.redlock_client.lock("signup_confirmation:#{@confirm_user.username}", 60_000)
-      if lock_info
-        send_activation_email(@confirm_user)
-      end
+      lock_info = redlock_client.lock("signup_confirmation:#{@confirm_user.username}", 60_000)
+      send_activation_email(@confirm_user) if lock_info
       haml :signup_confirmation
     end
   end
 
   def send_activation_email(user)
+    @activation_token = SecureRandom.hex(16)
+    redis_client.set("activation_token:#{user.username}", @activation_token, 15 * 60_000)
     Pony.mail(
-      from: settings.activation_email,
       to: user.email,
       subject: "Confirmation of new time-caddy account for username #{user.username}",
       body: 'placeholder for now',
+      via: :smtp,
+      via_options: {
+        address: settings.smtp['host'],
+        port: settings.smtp['port'],
+        user_name: settings.smtp['username'],
+        password: settings.smtp['password'],
+        authentication: settings.smtp['authentication'].to_sym,
+        domain: settings.smtp['domain'],
+      }
     )
   end
 

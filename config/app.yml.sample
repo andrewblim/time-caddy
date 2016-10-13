@@ -1,9 +1,15 @@
 development:
-  activation_email: test@test.com
   redis:
     host: localhost
     port: 6379
     db: 0
+  smtp:
+    host:                          # for gmail: smtp.gmail.com
+    port: 587
+    username:                      # for gmail: your username
+    password:                      # for gmail: an app-specific password
+    authentication: plain          # plain, login, or md5_cram (see Pony docs https://github.com/benprew/pony)
+    domain: localhost.localdomain
 
 test:
 

@@ -142,13 +142,13 @@ class TimeCaddy < Sinatra::Base
   get '/signup_confirmation/:username' do
     signup_errors = []
     login_alerts = []
-    @confirm_user = User.find_by(username: params[:username])
-    if @confirm_user.nil?
-      signup_errors << 'It looks like you hit the signup confirmation page for a user that has not been '\
-                       'created! Please try signing up again.'
-    elsif @confirm_user.active?
-      login_alerts << "User #{@confirm_user.username} has already been activated and can log in and use the app."
-    elsif !@confirm_user.inactive_but_fresh?
+    @activation_user = User.find_by(username: params[:username])
+    if @activation_user.nil?
+      signup_errors << 'It looks like you hit the signup confirmation page for a user that has not been created! '\
+                       'Please try signing up again.'
+    elsif @activation_user.active?
+      login_alerts << "User #{@activation_user.username} has already been activated and can log in and use the app."
+    elsif !@activation_user.inactive_but_fresh?
       # only destroy on signup attempt, leave this as a GET
       signup_errors << "Your signup was more than #{INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} ago, at which point we "\
                        "deactivate it. Please try signing up again."
@@ -161,29 +161,50 @@ class TimeCaddy < Sinatra::Base
       flash[:login_alerts] = login_alerts
       redirect '/login'
     else
-      lock_info = redlock_client.lock("signup_confirmation:#{@confirm_user.username}", 60_000)
-      send_activation_email(@confirm_user) if lock_info
+      lock_info = redlock_client.lock("activation_code_email:#{@activation_user.username}", 60_000)
+      if lock_info
+        @activation_token = SecureRandom.hex(16)
+        redis_client.set(
+          "activation_code:#{@activation_user.username}",
+          @activation_token,
+          px: 15 * 60_000,
+        )
+        Pony.mail(
+          to: @activation_user.email,
+          subject: "Confirmation of new time-caddy account for username #{@activation_user.username}",
+          body: erb(:activation_email),
+          via: :smtp,
+          via_options: {
+            address: settings.smtp['host'],
+            port: settings.smtp['port'],
+            user_name: settings.smtp['username'],
+            password: settings.smtp['password'],
+            authentication: settings.smtp['authentication'].to_sym,
+            domain: settings.smtp['domain'],
+          }
+        )
+      end
+      # if you can't get the lock, just silently present the next page - the
+      # lock is to prevent people from refreshing the page repeatedly and
+      # generating a ton of emails
       haml :signup_confirmation
     end
   end
 
-  def send_activation_email(user)
-    @activation_token = SecureRandom.hex(16)
-    redis_client.set("activation_token:#{user.username}", @activation_token, 15 * 60_000)
-    Pony.mail(
-      to: user.email,
-      subject: "Confirmation of new time-caddy account for username #{user.username}",
-      body: 'placeholder for now',
-      via: :smtp,
-      via_options: {
-        address: settings.smtp['host'],
-        port: settings.smtp['port'],
-        user_name: settings.smtp['username'],
-        password: settings.smtp['password'],
-        authentication: settings.smtp['authentication'].to_sym,
-        domain: settings.smtp['domain'],
-      }
-    )
+  post '/signup_confirmation' do
+    token = redis_client.get("activation_code:#{params[:username]}")
+    signup_confirmation_errors = []
+    if token.nil?
+      signup_confirmation_errors << 'Your confirmation code has expired. We have sent a new one.'
+    elsif token != params[:activation_code]
+      signup_confirmation_errors << 'Incorrect confirmation code.'
+    end
+    unless signup_confirmation_errors.blank?
+      flash[:signup_confirmation_errors] = signup_confirmation_errors
+      redirect "/signup_confirmation/#{params[:username]}"
+    end
+    flash[:login_alerts] = ['Your account has been activated successfully!']
+    redirect '/login'
   end
 
   get '/login' do

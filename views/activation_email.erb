@@ -1,0 +1,14 @@
+Hello <%= %>
+
+You or someone with your email address has tried to sign up for a time-caddy account. We require email confirmation before your account becomes active, to make sure it's really you. Your confirmation code is
+
+<%= @activation_token %>
+
+Please enter the code on the confirmation page that you are already on. If you've navigated away, it's
+
+<%= request.url %>
+
+This account activation code supersedes any others that you have already received. 
+
+Thanks,
+time-caddy

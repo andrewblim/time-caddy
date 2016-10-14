@@ -7,9 +7,19 @@
   %body
     = haml :_navbar, locals: { user: logged_in_user, hide_login: true }
     .container-fluid
-      .col-md-6.col-md-offset-3
-        %h2 Confirmation email sent
-        %p
-          We have sent an email to
-          = "#{@confirm_user.email}"
-          with instructions as to how to activate your account so that you can log in.
+      - if flash[:signup_confirmation_errors]
+        .col-md-4.col-md-offset-4
+          .flash.signup-errors
+            %ul
+              - flash[:signup_confirmation_errors].each do |error_msg|
+                %li= error_msg
+      .col-md-4.col-md-offset-4
+        %p We have sent an email to you with a confirmation code. Please enter it below to activate your account.
+        %form{action: '/signup_confirmation', method: 'post'}
+          .form-group
+            %input#username{type: 'hidden', name: 'username', value: @activation_user.username}
+          .form-group
+            %label{for: 'activation_code'} Confirmation code
+            %input#activation_code.form-control{type: 'text', name: 'activation_code'}
+          .form-group
+            %input#submit.btn.btn-default{type: 'submit', value: 'Confirm'}

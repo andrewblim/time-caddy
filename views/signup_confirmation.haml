@@ -6,7 +6,7 @@
     = haml :_jquery
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
-    = haml :_navbar, locals: { user: logged_in_user, hide_login: true }
+    = haml :_navbar, locals: { user: @user, hide_login: true }
     .container-fluid
       = haml :_flash
       .col-md-4.col-md-offset-4

@@ -30,7 +30,7 @@
             %a{href: '/profile'} Profile
           %li
             %a{href: '/settings'} Settings
-        %p.navbar-text.navbar-right= "Hello, #{logged_in_user.username}"
+        %p.navbar-text.navbar-right= "Hello, #{@user.username}"
       - else
         - if !locals[:hide_login]
           %ul.nav.navbar-nav.navbar-right

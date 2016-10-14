@@ -5,7 +5,7 @@
     = haml :_bootstrap_header
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
-    = haml :_navbar, locals: { user: logged_in_user }
+    = haml :_navbar, locals: { user: @user }
     .container-fluid
       .col-md-10.col-md-offset-1
         %p

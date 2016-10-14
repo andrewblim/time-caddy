@@ -5,7 +5,7 @@
     = haml :_bootstrap_header
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
-    = haml :_navbar, locals: { user: logged_in_user, hide_login: true }
+    = haml :_navbar, locals: { user: @user, hide_login: true }
 
     .container-fluid
       = haml :_flash
@@ -13,6 +13,8 @@
         %p
           Log in below. If you don't already have an account,
           %a{href: '/signup'} sign up.
+          If you have forgotten your password,
+          %a{href: '/reset_password'} reset it.
         %form{action: '/login', method: 'post'}
           .form-group
             %label{for: 'username_or_email'} Username or Email

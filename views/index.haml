@@ -5,11 +5,11 @@
     = haml :_bootstrap_header
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
-    = haml :_navbar, locals: { user: logged_in_user }
+    = haml :_navbar, locals: { user: @user }
 
     .container-fluid
-      - if logged_in_user
-        %p= "Hello, #{logged_in_user.username}."
+      - if @user
+        %p= "Hello, #{@user.username}."
         %p
           Add an entry:
           %textarea
@@ -24,7 +24,7 @@
               %td Tags
             %tr
               %td
-                - logged_in_user.log_entries.each do |log_entry|
+                - @user.log_entries.each do |log_entry|
                   %td= "#{log_entry.id}"
                   %td= "#{log_entry.start_at}"
                   %td= "#{log_entry.finish_at}"

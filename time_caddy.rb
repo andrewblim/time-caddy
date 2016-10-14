@@ -44,11 +44,11 @@ class TimeCaddy < Sinatra::Base
   end
 
   before do
-    @user = User.find_by(username: session[:username]) if session[:username]
-  end
-
-  def logged_in_user
-    @user
+    if session[:username].nil?
+      @user = nil
+    elsif !@user || @user.username != session[:username]
+      @user = User.find_by(username: session[:username])
+    end
   end
 
   get '/' do
@@ -63,6 +63,10 @@ class TimeCaddy < Sinatra::Base
   # basic framework here
 
   get '/signup' do
+    if session[:username]
+      flash.now[:warnings] = "You are already logged in as #{session[:username]}. If you log in "\
+                             "successfully below, you will be logged out as the previous user."
+    end
     haml :signup
   end
 
@@ -209,14 +213,18 @@ class TimeCaddy < Sinatra::Base
   end
 
   get '/login' do
-    if logged_in_user
-      redirect '/'
-    else
-      haml :login
+    if session[:username]
+      flash.now[:warnings] = "You are already logged in as #{session[:username]}. If you log in "\
+                             "successfully below, you will be logged out as the previous user."
     end
+    haml :login
   end
 
   post '/login' do
+    if params[:username_or_email].blank?
+      redirect '/login'
+      return
+    end
     if EmailValidator.valid?(params[:username_or_email])
       user = User.find_by(email: params[:username_or_email])
     else
@@ -236,6 +244,12 @@ class TimeCaddy < Sinatra::Base
 
   post '/logout' do
     session[:username] = nil
+    @user = nil
+    flash.discard # just making sure nothing makes its way out of here
     redirect '/'
+  end
+
+  get '/reset_password' do
+    # todo
   end
 end

@@ -42,12 +42,10 @@
         });
       });
   %body
-    = haml :_navbar, locals: { user: logged_in_user, hide_login: true }
+    = haml :_navbar, locals: { user: @user, hide_login: true }
     .container-fluid
       = haml :_flash
       .col-md-4.col-md-offset-4
-        - if logged_in_user
-          %p= "You are already logged in as #{logged_in_user.username}, though you may still create a new account below if you want."
         %p
           Sign up for a new account below. If you already have an account,
           %a{href: '/login'} log in

@@ -121,7 +121,7 @@ class TimeCaddy < Sinatra::Base
     end
 
     unless signup_errors.blank?
-      flash[:signup_errors] = signup_errors
+      flash[:errors] = signup_errors
       redirect '/signup'
     end
 
@@ -140,26 +140,20 @@ class TimeCaddy < Sinatra::Base
   end
 
   get '/signup_confirmation/:username' do
-    signup_errors = []
-    login_alerts = []
     @activation_user = User.find_by(username: params[:username])
     if @activation_user.nil?
-      signup_errors << 'It looks like you hit the signup confirmation page for a user that has not been created! '\
-                       'Please try signing up again.'
+      flash[:errors] = 'It looks like you hit the signup confirmation page for a user that has '\
+                       'not been created! Please try signing up again.'
+      redirect '/signup'
     elsif @activation_user.active?
-      login_alerts << "User #{@activation_user.username} has already been activated and can log in and use the app."
+      flash[:alerts] = "User #{@activation_user.username} has already been activated and can log "\
+                       "in and use the app."
+      redirect '/login'
     elsif !@activation_user.inactive_but_fresh?
       # only destroy on signup attempt, leave this as a GET
-      signup_errors << "Your signup was more than #{INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} ago, at which point we "\
-                       "deactivate it. Please try signing up again."
-    end
-
-    if !signup_errors.blank?
-      flash[:signup_errors] = signup_errors
+      flash[:errors] = "Your signup was more than #{INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} ago, at "\
+                       "which point we consider it inactive. Please try signing up again."
       redirect '/signup'
-    elsif !login_alerts.blank?
-      flash[:login_alerts] = login_alerts
-      redirect '/login'
     else
       lock_info = redlock_client.lock("activation_code_email:#{@activation_user.username}", 60_000)
       if lock_info
@@ -169,20 +163,22 @@ class TimeCaddy < Sinatra::Base
           @activation_token,
           px: 15 * 60_000,
         )
-        Pony.mail(
-          to: @activation_user.email,
-          subject: "Confirmation of new time-caddy account for username #{@activation_user.username}",
-          body: erb(:activation_email),
-          via: :smtp,
-          via_options: {
-            address: settings.smtp['host'],
-            port: settings.smtp['port'],
-            user_name: settings.smtp['username'],
-            password: settings.smtp['password'],
-            authentication: settings.smtp['authentication'].to_sym,
-            domain: settings.smtp['domain'],
-          }
-        )
+        if settings.email_enabled
+          Pony.mail(
+            to: @activation_user.email,
+            subject: "Confirmation of new time-caddy account for username #{@activation_user.username}",
+            body: erb(:activation_email),
+            via: :smtp,
+            via_options: {
+              address: settings.smtp['host'],
+              port: settings.smtp['port'],
+              user_name: settings.smtp['username'],
+              password: settings.smtp['password'],
+              authentication: settings.smtp['authentication'].to_sym,
+              domain: settings.smtp['domain'],
+            }
+          )
+        end
       end
       # if you can't get the lock, just silently present the next page - the
       # lock is to prevent people from refreshing the page repeatedly and
@@ -192,19 +188,24 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/signup_confirmation' do
+    user = User.find_by(params[:username])
+    unless user
+      flash[:errors] = "User #{params[:username]} was not found - try signing up for an account again."
+      redirect '/signup'
+    end
+
     token = redis_client.get("activation_code:#{params[:username]}")
-    signup_confirmation_errors = []
     if token.nil?
-      signup_confirmation_errors << 'Your confirmation code has expired. We have sent a new one.'
-    elsif token != params[:activation_code]
-      signup_confirmation_errors << 'Incorrect confirmation code.'
-    end
-    unless signup_confirmation_errors.blank?
-      flash[:signup_confirmation_errors] = signup_confirmation_errors
+      flash[:errors] = 'Your confirmation code has expired. We have sent a new one.'
       redirect "/signup_confirmation/#{params[:username]}"
+    elsif token != params[:activation_code]
+      flash[:errors] = 'Incorrect confirmation code.'
+      redirect "/signup_confirmation/#{params[:username]}"
+    else
+      user.activate
+      flash[:alerts] = 'Your account has been activated successfully!'
+      redirect '/login'
     end
-    flash[:login_alerts] = ['Your account has been activated successfully!']
-    redirect '/login'
   end
 
   get '/login' do

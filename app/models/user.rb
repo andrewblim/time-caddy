@@ -19,5 +19,6 @@ class User < ActiveRecord::Base
 
   def activate!
     raise 'User already activated' unless activate
+    update!(activation_time: Time.now)
   end
 end

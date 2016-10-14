@@ -3,14 +3,20 @@
   margin: 1em 0.5em;
 }
 
-.flash.signup-errors {
+.flash.errors {
   margin: 1em 0em;
   padding: 1em;
   background-color: pink;
 }
 
-.flash.login-alerts {
+.flash.warnings {
   margin: 1em 0em;
   padding: 1em;
   background-color: moccasin;
+}
+
+.flash.alerts {
+  margin: 1em 0em;
+  padding: 1em;
+  background-color: aquamarine;
 }

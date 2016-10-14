@@ -8,8 +8,6 @@
     = haml :_navbar, locals: { user: logged_in_user }
 
     .container-fluid
-      - if flash[:login]
-        %p= flash[:login]
       - if logged_in_user
         %p= "Hello, #{logged_in_user.username}."
         %p

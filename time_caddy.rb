@@ -217,15 +217,19 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/login' do
-    user = User.find_by(username: params[:username])
+    if EmailValidator.valid?(params[:username_or_email])
+      user = User.find_by(email: params[:username_or_email])
+    else
+      user = User.find_by(username: params[:username_or_email])
+    end
     if !user
-      flash[:errors] = "Unknown user #{params[:username]}"
+      flash[:errors] = "Unknown username or email address #{params[:username_or_email]}"
       redirect '/login'
     elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
       flash[:errors] = 'Wrong password'
       redirect '/login'
     else
-      session[:username] = params[:username]
+      session[:username] = user.username
       redirect '/'
     end
   end

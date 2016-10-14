@@ -219,10 +219,10 @@ class TimeCaddy < Sinatra::Base
   post '/login' do
     user = User.find_by(username: params[:username])
     if !user
-      flash[:login] = "Unknown user #{params[:username]}"
+      flash[:errors] = "Unknown user #{params[:username]}"
       redirect '/login'
     elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
-      flash[:login] = 'Wrong password'
+      flash[:errors] = 'Wrong password'
       redirect '/login'
     else
       session[:username] = params[:username]

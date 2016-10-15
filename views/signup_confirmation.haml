@@ -1,7 +1,7 @@
 !!! 5
 %html
   %head
-    %title time-caddy signup
+    %title time-caddy signup confirmation
     = haml :_bootstrap_header
     = haml :_jquery
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
@@ -16,9 +16,9 @@
             .form-group
               %input#username{type: 'hidden', name: 'username', value: @activation_user.username}
             .form-group
-              %label{for: 'activation_code'} Confirmation code
-              %input#activation_code.form-control{type: 'text', name: 'activation_code'}
+              %label{for: 'activation_token'} Confirmation code
+              %input#activation_token.form-control{type: 'text', name: 'activation_token'}
             .form-group
               %input#submit.btn.btn-default{type: 'submit', value: 'Confirm'}
         - else
-          %p Please contact an admin to activate your account.
+          %p= "Please contact #{settings.support_email} to activate your account."

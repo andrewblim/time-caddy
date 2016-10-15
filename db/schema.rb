@@ -10,13 +10,14 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160930130319) do
+ActiveRecord::Schema.define(version: 20161015205224) do
 
   create_table "log_entries", force: :cascade do |t|
-    t.integer  "user_id",                   null: false
+    t.integer  "user_id"
     t.datetime "start_at",                  null: false
     t.datetime "finish_at",                 null: false
     t.string   "description", limit: 65535, null: false
+    t.index ["user_id"], name: "index_log_entries_on_user_id"
   end
 
   create_table "log_entries_tags", id: false, force: :cascade do |t|
@@ -24,6 +25,12 @@ ActiveRecord::Schema.define(version: 20160930130319) do
     t.integer "tag_id"
     t.index ["log_entry_id"], name: "index_log_entries_tags_on_log_entry_id"
     t.index ["tag_id"], name: "index_log_entries_tags_on_tag_id"
+  end
+
+  create_table "password_reset_requests", force: :cascade do |t|
+    t.integer  "user_id"
+    t.datetime "requested_at", null: false
+    t.index ["user_id"], name: "index_password_reset_requests_on_user_id"
   end
 
   create_table "tags", force: :cascade do |t|

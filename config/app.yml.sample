@@ -10,6 +10,7 @@ development:
     password:                      # for gmail: an app-specific password
     authentication: plain          # plain, login, or md5_cram (see Pony docs https://github.com/benprew/pony)
     domain: localhost.localdomain
+  support_email:                   # this shows up in the app as the email address to contact for support
 
 test:
 

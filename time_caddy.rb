@@ -17,6 +17,8 @@ require 'require_all'
 require_all 'app/models/**/*.rb'
 
 class TimeCaddy < Sinatra::Base
+  MAX_RECENT_PASSWORD_RESET_REQUESTS = 5
+
   register Sinatra::ActiveRecordExtension
   register Sinatra::ConfigFile
   register Sinatra::Flash
@@ -143,8 +145,8 @@ class TimeCaddy < Sinatra::Base
     redirect "/signup_confirmation/#{user.username}"
   end
 
-  get '/signup_confirmation/:username' do
-    @activation_user = User.find_by(username: params[:username])
+  get '/signup_confirmation/:username' do |username|
+    @activation_user = User.find_by(username: username)
     if @activation_user.nil?
       flash[:errors] = 'It looks like you hit the signup confirmation page for a user that has '\
                        'not been created! Please try signing up again.'
@@ -159,11 +161,11 @@ class TimeCaddy < Sinatra::Base
                        "which point we consider it inactive. Please try signing up again."
       redirect '/signup'
     else
-      lock_info = redlock_client.lock("activation_code_email:#{@activation_user.username}", 60_000)
+      lock_info = redlock_client.lock("activation_token_email:#{@activation_user.username}", 60_000)
       if lock_info
         @activation_token = SecureRandom.hex(16)
         redis_client.set(
-          "activation_code:#{@activation_user.username}",
+          "activation_token:#{@activation_user.username}",
           @activation_token,
           px: 15 * 60_000,
         )
@@ -192,17 +194,17 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/signup_confirmation' do
-    user = User.find_by(params[:username])
+    user = User.find_by(username: params[:username])
     unless user
       flash[:errors] = "User #{params[:username]} was not found - try signing up for an account again."
       redirect '/signup'
     end
 
-    token = redis_client.get("activation_code:#{params[:username]}")
+    token = redis_client.get("activation_token:#{params[:username]}")
     if token.nil?
       flash[:errors] = 'Your confirmation code has expired. We have sent a new one.'
       redirect "/signup_confirmation/#{params[:username]}"
-    elsif token != params[:activation_code]
+    elsif token != params[:activation_token]
       flash[:errors] = 'Incorrect confirmation code.'
       redirect "/signup_confirmation/#{params[:username]}"
     else
@@ -221,20 +223,12 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/login' do
-    if params[:username_or_email].blank?
-      redirect '/login'
-      return
-    end
-    if EmailValidator.valid?(params[:username_or_email])
-      user = User.find_by(email: params[:username_or_email])
-    else
-      user = User.find_by(username: params[:username_or_email])
-    end
+    user = User.find_by_username_or_email(params[:username_or_email])
     if !user
       flash[:errors] = "Unknown username or email address #{params[:username_or_email]}"
       redirect '/login'
     elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
-      flash[:errors] = 'Wrong password'
+      flash[:errors] = 'Wrong username/password combination'
       redirect '/login'
     else
       session[:username] = user.username
@@ -244,12 +238,52 @@ class TimeCaddy < Sinatra::Base
 
   post '/logout' do
     session[:username] = nil
-    @user = nil
     flash.discard # just making sure nothing makes its way out of here
     redirect '/'
   end
 
-  get '/reset_password' do
-    # todo
+  get '/password_reset_request' do
+    if session[:username]
+      flash.now[:warnings] = "You are already logged in as #{session[:username]}. This page is "\
+                             "meant for users who have forgotten their passwords and can't log "\
+                             "in. If you can log in and just want to change your password, go to "\
+                             "the <a href=\"/settings/\">settings</a> page."
+    end
+    haml :password_reset_request
+  end
+
+  post '/password_reset_request' do
+    @password_reset_user = User.find_by_username_or_email(params[:username_or_email])
+    if !@password_reset_user
+      flash[:errors] = "Unknown username or email address #{params[:username_or_email]}"
+      redirect '/password_reset_request'
+    elsif @password_reset_user.n_recent_password_reset_requests > MAX_RECENT_PASSWORD_RESET_REQUESTS
+      flash[:errors] = "There have been too many recent password reset requests for "\
+                       "#{params[:username_or_email]} in the last 24 hours. If you need your "\
+                       "password reset sooner than that, please contact #{settings.support_email}."
+      redirect '/password_reset_request'
+    else
+      @password_reset_token = SecureRandom.hex(16)
+      if settings.email_enabled
+        Pony.mail(
+          to: @password_reset_user.email,
+          subject: "Password reset request for time-caddy username #{@password_reset_user.username}",
+          body: erb(:activation_email),
+          via: :smtp,
+          via_options: {
+            address: settings.smtp['host'],
+            port: settings.smtp['port'],
+            user_name: settings.smtp['username'],
+            password: settings.smtp['password'],
+            authentication: settings.smtp['authentication'].to_sym,
+            domain: settings.smtp['domain'],
+          }
+        )
+      end
+      redirect '/password_reset_confirmation'
+    end
+  end
+
+  get '/password_reset_confirmation' do
   end
 end

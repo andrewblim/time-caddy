@@ -67,7 +67,7 @@ class TimeCaddy < Sinatra::Base
   get '/signup' do
     if session[:username]
       flash.now[:warnings] = "You are already logged in as #{session[:username]}. If you log in "\
-                             "successfully below, you will be logged out as the previous user."
+                             'successfully below, you will be logged out as the previous user.'
     end
     haml :signup
   end
@@ -153,12 +153,12 @@ class TimeCaddy < Sinatra::Base
       redirect '/signup'
     elsif @activation_user.active?
       flash[:alerts] = "User #{@activation_user.username} has already been activated and can log "\
-                       "in and use the app."
+                       'in and use the app.'
       redirect '/login'
     elsif !@activation_user.inactive_but_fresh?
       # only destroy on signup attempt, leave this as a GET
       flash[:errors] = "Your signup was more than #{INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} ago, at "\
-                       "which point we consider it inactive. Please try signing up again."
+                       'which point we consider it inactive. Please try signing up again.'
       redirect '/signup'
     else
       lock_info = redlock_client.lock("activation_token_email:#{@activation_user.username}", 60_000)
@@ -182,7 +182,7 @@ class TimeCaddy < Sinatra::Base
               password: settings.smtp['password'],
               authentication: settings.smtp['authentication'].to_sym,
               domain: settings.smtp['domain'],
-            }
+            },
           )
         end
       end
@@ -217,7 +217,7 @@ class TimeCaddy < Sinatra::Base
   get '/login' do
     if session[:username]
       flash.now[:warnings] = "You are already logged in as #{session[:username]}. If you log in "\
-                             "successfully below, you will be logged out as the previous user."
+                             'successfully below, you will be logged out as the previous user.'
     end
     haml :login
   end
@@ -246,8 +246,8 @@ class TimeCaddy < Sinatra::Base
     if session[:username]
       flash.now[:warnings] = "You are already logged in as #{session[:username]}. This page is "\
                              "meant for users who have forgotten their passwords and can't log "\
-                             "in. If you can log in and just want to change your password, go to "\
-                             "the <a href=\"/settings/\">settings</a> page."
+                             'in. If you can log in and just want to change your password, go to '\
+                             'the <a href="/settings/">settings</a> page.'
     end
     haml :password_reset_request
   end
@@ -258,17 +258,38 @@ class TimeCaddy < Sinatra::Base
       flash[:errors] = "Unknown username or email address #{params[:username_or_email]}"
       redirect '/password_reset_request'
     elsif @password_reset_user.n_recent_password_reset_requests > MAX_RECENT_PASSWORD_RESET_REQUESTS
-      flash[:errors] = "There have been too many recent password reset requests for "\
+      flash[:errors] = 'There have been too many recent password reset requests for '\
                        "#{params[:username_or_email]} in the last 24 hours. If you need your "\
                        "password reset sooner than that, please contact #{settings.support_email}."
       redirect '/password_reset_request'
     else
-      @password_reset_token = SecureRandom.hex(16)
+      loop do
+        @password_reset_token = SecureRandom.hex(16)
+        password_reset_token_salt = BCrypt::Engine.generate_salt
+        password_reset_token_hash = BCrypt::Engine.hash_secret(@password_reset_token, password_reset_token_salt)
+        # ensure that this is the only unused token/salt combo
+        password_reset_request = PasswordResetRequest.transaction do
+          existing_request = PasswordResetRequest.where(
+            password_reset_token_hash: password_reset_token_hash,
+            password_reset_token_salt: password_reset_token_salt,
+          ).find(&:active?)
+          unless existing_request
+            @password_reset_user.create(
+              request_time: Time.now,
+              password_reset_token_hash: password_reset_token_hash,
+              password_reset_token_salt: password_reset_token_salt,
+              used: false,
+            )
+          end
+        end
+        break if password_reset_request
+      end
+
       if settings.email_enabled
         Pony.mail(
           to: @password_reset_user.email,
           subject: "Password reset request for time-caddy username #{@password_reset_user.username}",
-          body: erb(:activation_email),
+          body: erb(:password_reset_request_email),
           via: :smtp,
           via_options: {
             address: settings.smtp['host'],
@@ -277,7 +298,7 @@ class TimeCaddy < Sinatra::Base
             password: settings.smtp['password'],
             authentication: settings.smtp['authentication'].to_sym,
             domain: settings.smtp['domain'],
-          }
+          },
         )
       end
       redirect '/password_reset_confirmation'
@@ -285,5 +306,10 @@ class TimeCaddy < Sinatra::Base
   end
 
   get '/password_reset_confirmation' do
+    haml :password_reset_confirmation
+  end
+
+  post '/password_reset_confirmation' do
+    # todo
   end
 end

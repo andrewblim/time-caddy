@@ -13,6 +13,10 @@ Lint/EndAlignment:
 Lint/HandleExceptions:
   Enabled: false
 
+Metrics/ClassLength:
+  CountComments: false
+  Max: 500
+
 Metrics/LineLength:
   Max: 140
 

@@ -3,7 +3,10 @@ class CreatePasswordResetRequests < ActiveRecord::Migration[4.2]
   def change
     create_table :password_reset_requests do |t|
       t.belongs_to :user, index: true
-      t.datetime :requested_at, null: false
+      t.datetime :request_time, null: false
+      t.string :password_reset_token_hash, null: false
+      t.string :password_reset_token_salt, null: false
+      t.boolean :used, null: false
     end
   end
 end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 class User < ActiveRecord::Base
   INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS = 7
-  
+
   has_many :password_reset_requests
   has_many :log_entries
 
@@ -40,6 +40,6 @@ class User < ActiveRecord::Base
   end
 
   def n_recent_password_reset_requests(window: Time.now.advance(hours: -24)..Time.now)
-    password_reset_requests.where(requested_at: window).count
+    password_reset_requests.where(request_time: window).count
   end
 end

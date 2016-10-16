@@ -29,7 +29,10 @@ ActiveRecord::Schema.define(version: 20161015205224) do
 
   create_table "password_reset_requests", force: :cascade do |t|
     t.integer  "user_id"
-    t.datetime "requested_at", null: false
+    t.datetime "request_time",              null: false
+    t.string   "password_reset_token_hash", null: false
+    t.string   "password_reset_token_salt", null: false
+    t.boolean  "used",                      null: false
     t.index ["user_id"], name: "index_password_reset_requests_on_user_id"
   end
 

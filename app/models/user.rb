@@ -39,7 +39,7 @@ class User < ActiveRecord::Base
     update!(activation_time: Time.now)
   end
 
-  def n_recent_password_reset_requests(window: Time.now.advance(hours: -24)..Time.now)
+  def recent_password_reset_requests_count(window: Time.now.advance(hours: -24)..Time.now)
     password_reset_requests.where(request_time: window).count
   end
 end

@@ -6,9 +6,9 @@ You or someone with your email address has tried to sign up for a time-caddy acc
 
 Please enter the code on the confirmation page that you are already on. In case you've navigated away, it's
 
-<%= "#{request.url}\n" %>
+<%= "#{URI.join(base_url, "/signup_confirmation/#{@activation_user.username}")}\n" %>
 
-This account activation code supersedes any others that you have already received.
+This activation code will expire after a period of time, in which case revisiting the confirmation page will generate a new one and send you a new email.
 
 Thanks,
 time-caddy

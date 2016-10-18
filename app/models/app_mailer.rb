@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module AppMailer
   def mail(**kwargs)
-    return if settings.email_enabled
+    return unless settings.email_enabled
     Pony.mail(
       **kwargs.merge(
         via: :smtp,

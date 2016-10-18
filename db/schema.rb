@@ -32,7 +32,7 @@ ActiveRecord::Schema.define(version: 20161015205224) do
     t.datetime "request_time",              null: false
     t.string   "password_reset_token_hash", null: false
     t.string   "password_reset_token_salt", null: false
-    t.boolean  "used",                      null: false
+    t.boolean  "active",                    null: false
     t.index ["user_id"], name: "index_password_reset_requests_on_user_id"
   end
 

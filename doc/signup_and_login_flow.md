@@ -84,7 +84,7 @@ Password resets:
   - If user does not exist, or exists and is stale:
     - Destroy user if it exists
     - Redirect to `/signup`
-  - If user exists and is not active and not stale, redirect to `/resend_signup_confirmation` (don't reset an inactive user)
+  - If user exists and is not active and not stale, redirect to `/password_reset_request` (don't reset an inactive user)
   - If user exists and is active:
     - Retrieve the most recent active password request
     - If the submitted token does not match this request's token and salt, redirect to `/password_reset?token=<password_reset_url_token>`

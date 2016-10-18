@@ -6,7 +6,7 @@ class CreatePasswordResetRequests < ActiveRecord::Migration[4.2]
       t.datetime :request_time, null: false
       t.string :password_reset_token_hash, null: false
       t.string :password_reset_token_salt, null: false
-      t.boolean :used, null: false
+      t.boolean :active, null: false
     end
   end
 end

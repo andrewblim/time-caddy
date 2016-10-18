@@ -54,7 +54,7 @@ class TimeCaddy < Sinatra::Base
       signup_token = SecureRandom.hex(16)
       signup_token_salt = BCrypt::Engine.generate_salt
       signup_token_hash = BCrypt::Engine.hash_secret(signup_token, signup_token_salt)
-      signup_url_token = SecureRandom.hex(16)
+      signup_url_token = nil
 
       redis_client.multi do
         redis_client.set(
@@ -62,11 +62,16 @@ class TimeCaddy < Sinatra::Base
           true,
           ex: User::SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC,
         )
-        redis_client.set(
-          "signup_confirmation_url_token:#{signup_url_token}",
-          username,
-          ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
-        )
+        loop do
+          # collisions not permissible
+          signup_url_token = SecureRandom.hex(16)
+          set_status = redis_client.setnx(
+            "signup_confirmation_url_token:#{signup_url_token}",
+            username,
+            ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
+          )
+          break if set_status == 1
+        end
         redis_client.set(
           "signup_confirmation_token_hash:#{username}",
           signup_token_hash,
@@ -276,11 +281,14 @@ class TimeCaddy < Sinatra::Base
     if token_hash != BCrypt::Engine.hash_secret(params[:signup_confirmation_token], token_salt)
       flash[:errors] = 'Incorrect confirmation code.'
       redirect "/signup_confirmation?token=#{signup_confirmation_url_token}"
-    else
-      user.activate
+    elsif user.confirm_signup
       clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
       flash[:alerts] = 'Your account has been confirmed successfully!'
       redirect '/login'
+    else
+      flash[:errors] = 'Sorry, we ran into an error saving your data! Please try again, and if it happens again, '\
+        "contact #{settings.support_email}."
+      redirect "/signup_confirmation?token=#{signup_confirmation_url_token}"
     end
   end
 
@@ -295,12 +303,12 @@ class TimeCaddy < Sinatra::Base
       @new_user.destroy
       @new_user = nil
     end
+
     if @new_user.nil?
       flash[:errors] = "The user with email with #{params[:email]} was not found. If you signed up more than "\
         "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for maintenance and "\
         'security we delete users that appear to be orphaned while awaiting confirmation. Please try signing up again.'
       redirect '/signup'
-      return
     elsif @new_user.confirmed?(check_time)
       flash[:alerts] = 'Your account has already been confirmed! You can log in.'
       redirect '/login'
@@ -328,33 +336,46 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/password_reset_request' do
-    @password_reset_user = User.find_by_username_or_email(params[:username_or_email])
-    if !@password_reset_user
-      flash[:errors] = "Unknown username or email address #{params[:username_or_email]}"
+    @password_reset_user = User.find_by(email: params[:email])
+    check_time = Time.now
+    if @password_reset_user && @password_reset_user.unconfirmed_stale?(check_time)
+      @password_reset_user.destroy
+      @password_reset_user = nil
+    end
+
+    if @password_reset_user.nil?
+      flash[:errors] = "No user with email #{params[:email]} was found. If you signed up more than "\
+        "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for maintenance and "\
+        'security we delete users that appear to be orphaned while awaiting confirmation. Please try signing up again.'
+      redirect '/signup'
+    elsif @password_reset_user.unconfirmed_fresh?
+      flash[:errors] = "Your account is created but still not activated, which is why you can't log in. Please follow "\
+        "the instructions in the email that was sent to you. If it's been a while and you haven't received the email, "\
+        '<a href="/resend_signup_confirmation">click here</a>.'
       redirect '/password_reset_request'
     elsif @password_reset_user.recent_password_reset_requests_count > MAX_RECENT_PASSWORD_RESET_REQUESTS
-      flash[:errors] = "There have been too many password reset requests for #{params[:username_or_email]} in the "\
-                       'last 24 hours. If you need your password reset sooner than that, please contact '\
-                       "#{settings.support_email}."
+      flash[:errors] = "There have been too many recent password reset requests for #{params[:email]}. "\
+        "You can either wait a while, or contact #{settings.support_email} for help."
       redirect '/password_reset_request'
     else
       # Repeatedly generate token/salt combos until we get a not-already used
-      # one that is active, since collisions would be bad.
+      # one that is active, since collisions across any two users for an active
+      # reset request would allow one user to reset another's password.
       loop do
         @password_reset_token = SecureRandom.hex(16)
         password_reset_token_salt = BCrypt::Engine.generate_salt
         password_reset_token_hash = BCrypt::Engine.hash_secret(@password_reset_token, password_reset_token_salt)
+        @password_reset_url_token = SecureRandom.hex(16)
+
         password_reset_request = PasswordResetRequest.transaction do
-          existing_request = PasswordResetRequest.where(
-            password_reset_token_hash: password_reset_token_hash,
-            password_reset_token_salt: password_reset_token_salt,
-          ).find(&:active?)
-          unless existing_request
-            @password_reset_user.create(
+          unless PasswordResetRequest.where(password_reset_url_token: @password_reset_url_token).find(&:active)
+            @password_reset_user.password_reset_requests.update_all(active: false)
+            @password_reset_user.password_reset_requests.create(
               request_time: Time.now,
               password_reset_token_hash: password_reset_token_hash,
               password_reset_token_salt: password_reset_token_salt,
-              used: false,
+              password_reset_url_token: @password_reset_url_token,
+              active: true,
             )
           end
         end
@@ -366,7 +387,8 @@ class TimeCaddy < Sinatra::Base
         subject: "Password reset request for time-caddy username #{@password_reset_user.username}",
         body: erb(:password_reset_request_email),
       )
-      redirect '/password_reset'
+      # no redirect, just tell them to check email and follow link
+      haml :password_reset_request_complete
     end
   end
 

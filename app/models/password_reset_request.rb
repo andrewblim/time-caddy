@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 class PasswordResetRequest < ActiveRecord::Base
-  PASSWORD_RESET_REQUEST_LIFESPAN_IN_HOURS = 24
+  PASSWORD_RESET_REQUEST_LIFESPAN_IN_SEC = 6 * 60 * 60
 
   belongs_to :user
 
-  def active?(as_of: Time.now)
-    !used && request_time.advance(hours: PASSWORD_RESET_REQUEST_LIFESPAN_IN_HOURS) > as_of
+  def usable?(as_of: Time.now)
+    active && request_time.advance(seconds: PASSWORD_RESET_REQUEST_LIFESPAN_IN_SEC) > as_of
   end
 end

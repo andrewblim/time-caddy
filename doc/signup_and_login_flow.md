@@ -23,8 +23,8 @@ Main workflow:
     - Create signup_confirmation_url_token, store username in Redis with signup_confirmation_url_token-based key and the same short expiry
     - Send email with activation_token and link to `/signup_confirmation?token=<signup_confirmation_url_token>`
     - Redirect to `/signup_confirmation?token=<signup_token>`
-  - If user exists and is not active and not stale, redirect to `/resend_signup_confirmation`
-  - If user exists and is already active, redirect to `/login`
+  - If user exists and is not active and not stale, redirect to `/signup`
+  - If user exists and is already active, redirect to `/signup`
 - GET `/signup_confirmation?token=<signup_confirmation_url_token>`
   - If signup_confirmation_url_token key does not exist (i.e. expired), redirect to `/resend_signup_confirmation`
   - If signup_confirmation_url_token key exists, display signup confirmation token form
@@ -123,4 +123,4 @@ Although the signup and password reset flows would typically be done by a user w
 ## To-do
 
 - Add user flag for disabling access, which when toggled should forcibly log users out on their next request and should prevent logins, signup confirmations, and password resets.
-- Add more robust configuration for what to do when email is not available. 
+- Add more robust configuration for what to do when email is not available.

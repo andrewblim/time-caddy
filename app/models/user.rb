@@ -21,23 +21,40 @@ class User < ActiveRecord::Base
     end
   end
 
-  def active?
-    !activation_time.nil?
+  # User signup states:
+  #   - signed up, not confirmed, but signed up recently (fresh)
+  #   - signed up, not confirmed, and signup happened a while ago (stale)
+  #   - signup up and confirmed
+  #
+  # Additionally, the disabled flag may be set to true in any of these states,
+  # but that is something that is checked separately, as the app should decide
+  # what can and can't be done with a disabled account.
+
+  def unconfirmed_fresh?(as_of = Time.now)
+      (signup_confirmation_time.nil? || signup_confirmation_time > as_of) &&
+      signup_time.advance(days: INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS) > as_of
   end
 
-  def inactive_but_fresh?(as_of = Time.now)
-    !active? && signup_time.advance(days: INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS) > as_of
+  def unconfirmed_stale?(as_of = Time.now)
+    (signup_confirmation_time.nil? || signup_confirmation_time > as_of) &&
+      signup_time.advance(days: INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS) <= as_of
   end
 
-  def activate
-    return false if active?
-    update(activation_time: Time.now)
+  def confirmed?(as_of = Time.now)
+    !signup_confirmation_time.nil? && signup_confirmation_time <= as_of
   end
 
-  def activate!
-    raise 'User already activated' unless activate
-    update!(activation_time: Time.now)
+  def confirm_signup(as_of = Time.now)
+    return false if confirmed?(as_of)
+    update(signup_confirmation_time: as_of)
   end
+
+  def confirm_signup!(as_of = Time.now)
+    raise 'User already confirmed' if confirmed?(as_of)
+    update!(signup_confirmation_time: as_of)
+  end
+
+  # Used to stop too many password reset requests from happening at once
 
   def recent_password_reset_requests_count(window: Time.now.advance(hours: -24)..Time.now)
     password_reset_requests.where(request_time: window).count

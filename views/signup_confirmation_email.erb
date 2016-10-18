@@ -1,14 +1,12 @@
-Hello <%= @activation_user.username %>,
+Hello <%= @new_user.username %>,
 
 You or someone with your email address has tried to sign up for a time-caddy account. We require email confirmation before activating your account, so that we can be sure it's really you. Your confirmation code is
 
-<%= "#{@activation_token}\n" %>
+<%= "#{@signup_confirmation_token}\n" %>
 
 Please enter the code on the confirmation page that you are already on. In case you've navigated away, it's
 
-<%= "#{URI.join(base_url, "/signup_confirmation/#{@activation_user.username}")}\n" %>
-
-This activation code will expire after a period of time, in which case revisiting the confirmation page will generate a new one and send you a new email.
+<%= "#{URI.join(base_url, "/signup_confirmation?token=#{@signup_confirmation_url_token}")}\n" %>
 
 Thanks,
 time-caddy

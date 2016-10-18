@@ -13,12 +13,19 @@ Lint/EndAlignment:
 Lint/HandleExceptions:
   Enabled: false
 
+Metrics/AbcSize:
+  Max: 100
+
 Metrics/ClassLength:
   CountComments: false
   Max: 500
 
 Metrics/LineLength:
   Max: 140
+
+Metrics/MethodLength:
+  CountComments: false
+  Max: 100
 
 Metrics/ParameterLists:
   Max: 10

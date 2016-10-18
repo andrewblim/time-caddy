@@ -18,8 +18,8 @@ require_all 'app/models/**/*.rb'
 
 class TimeCaddy < Sinatra::Base
   MAX_RECENT_PASSWORD_RESET_REQUESTS = 5
-  ACTIVATION_TOKEN_EMAIL_COOLDOWN_IN_SEC = 5 * 60
-  ACTIVATION_TOKEN_LIFESPAN_IN_SEC = 30 * 60
+  SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC = 5 * 60
+  SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC = 30 * 60
 
   register Sinatra::ActiveRecordExtension
   register Sinatra::ConfigFile
@@ -53,7 +53,7 @@ class TimeCaddy < Sinatra::Base
       URI::Generic.build(
         scheme: request.scheme,
         host: request.host,
-        port: request.port unless request.port == 80,
+        port: request.port == 80 ? nil : request.port,
         path: '/',
       )
     end
@@ -83,29 +83,25 @@ class TimeCaddy < Sinatra::Base
   get '/signup' do
     if session[:username]
       flash.now[:warnings] = "You are already logged in as #{session[:username]}, though you can still create a new "\
-                             'account for some other username/email if you want.'
+                             'account for some other username/email address if you want.'
     end
     haml :signup
   end
 
   post '/signup' do
+    # verify that the form was filled out reasonably
+
     signup_errors = []
-    if params[:username].blank?
-      signup_errors << 'You must specify a username.'
-    elsif params[:username].length > 40
-      signup_errors << 'Your username cannot be longer than 40 characters.'
+    if !params[:username].length.between?(1, 40)
+      signup_errors << 'Your username must be 1-40 characters long.'
     elsif params[:username] !~ /^[-_0-9A-Za-z]+$/
       signup_errors << 'Your username must consist solely of alphanumeric characters, underscores, or hyphens.'
     end
-
-    if params[:email].blank?
-      signup_errors << 'You must specify an email address.'
-    elsif params[:email].length > 60
-      signup_errors << 'Your email address cannot be longer than 60 characters.'
+    if !params[:email].length.between?(1, 60)
+      signup_errors << 'Your email address must be 1-60 characters long.'
     elsif !EmailValidator.valid?(params[:email])
       signup_errors << 'Your email address was not recognized as a valid address.'
     end
-
     if params[:password].length < 6
       signup_errors << 'Your password must be at least 6 characters long.'
     end
@@ -117,47 +113,103 @@ class TimeCaddy < Sinatra::Base
       signup_errors << "The timezone #{params[:default_tz]} was not recognized as a valid tz timezone."
     end
 
-    # if a created but inactivated user is found with the same username or
-    # email, but the user is sufficiently old, destroy it and carry on
+    # don't even bother hitting the database if we have errors at this point
+    unless signup_errors.blank?
+      flash[:errors] = signup_errors
+      redirect '/signup'
+      return
+    end
+
+    # If the user already exists and is not stale, redirect back with a helpful
+    # flash error. If the user exists but is stale, destroy it.
+    check_time = Time.now
     if (user = User.find_by(username: params[:username]))
-      if user.active?
+      if user.confirmed?(check_time)
         signup_errors << "There is already a user with username #{params[:username]}."
-      elsif user.inactive_but_fresh?
-        signup_errors << "There is already a not-yet-activated user with username #{params[:username]} created less "\
-                         "than #{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If you need the activation email "\
-                         "to be resent, <a href='/signup_confirmation/#{user.username}'>click here</a>."
+      elsif user.unconfirmed_fresh?(check_time)
+        signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up less than "\
+                         "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If this is you and you need the "\
+                         "confirmation email to be resent, <a href='/resend_signup_confirmation'>click here</a>."
       else
         user.destroy
       end
     elsif (user = User.find_by(email: params[:email]))
-      if user.active?
+      if user.confirmed?(check_time)
         signup_errors << "There is already a user with email #{params[:email]}."
-      elsif user.inactive_but_fresh?
+      elsif user.unconfirmed_fresh?(check_time)
         signup_errors << "There is already a not-yet-activated user with email #{params[:email]} created less than "\
-                         "than #{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If you need the activation email "\
-                         "to be resent, <a href='/signup_confirmation/#{user.username}'>click here</a>."
+          "than #{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If you need the activation email "\
+          "to be resent, <a href='/signup_confirmation/#{user.username}'>click here</a>."
       else
         user.destroy
       end
     end
-
     unless signup_errors.blank?
       flash[:errors] = signup_errors
       redirect '/signup'
+      return
     end
 
+    # Create user
     password_salt = BCrypt::Engine.generate_salt
     password_hash = BCrypt::Engine.hash_secret(params[:password], password_salt)
-    user = User.create(
+    @new_user = User.create(
       username: params[:username],
       email: params[:email],
       password_hash: password_hash,
       password_salt: password_salt,
       signup_time: Time.now.utc,
       activation_time: nil,
+      disabled: false,
       default_tz: params[:default_tz],
     )
-    redirect "/signup_confirmation/#{user.username}"
+
+    # Generate URL token for signup_confirmation and send email with token
+    # and confirmation instructions. The redlock prevents too many emails from
+    # going out at once.
+    lock_info = redlock_client.lock(
+      "signup_confirmation_email:#{@activation_user.username}",
+      SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC * 1000,
+    )
+    if lock_info
+      @signup_confirmation_token = SecureRandom.hex(16)
+      signup_confirmation_token_salt = BCrypt::Engine.generate_salt
+      signup_confirmation_token_hash = BCrypt::Engine.hash_secret(@signup_confirmation_token_hash, signup_confirmation_token_salt)
+      @signup_confirmation_url_token = SecureRandom.hex(16)
+
+      redis_client.multi do
+        redis_client.set(
+          "signup_confirmation_url_token:#{signup_confirmation_url_token}",
+          @new_user.username,
+          ex: SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
+        )
+        redis_client.set(
+          "signup_confirmation_token_hash:#{@new_user.username}",
+          signup_confirmation_token_hash,
+          ex: SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
+        )
+        redis_client.set(
+          "signup_confirmation_token_salt:#{@new_user.username}",
+          signup_confirmation_token_salt,
+          ex: SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
+        )
+      end
+
+      mail(
+        to: @new_user.email,
+        subject: "Confirmation of new time-caddy account for username #{@new_user.username}",
+        body: erb(:signup_confirmation_email),
+      )
+    end
+
+    redirect "/signup_confirmation?token=#{@signup_confirmation_url_token}"
+  end
+
+  get '/resend_signup_confirmation' do
+    haml :resend_signup_confirmation
+  end
+
+  post '/resend_signup_confirmation' do
   end
 
   get '/signup_confirmation/:username' do |username|
@@ -171,27 +223,11 @@ class TimeCaddy < Sinatra::Base
       redirect '/login'
     elsif !@activation_user.inactive_but_fresh?
       # only destroy the User on next signup attempt so that this can remain a GET
-      flash[:errors] = 'Your original signup was too long ago and we have deactivated it. Please try '
+      flash[:errors] = 'Your original signup was too long ago and we have deactivated it. Please try '\
                        '<a href="/signup">signing up</a> again if you would like an account.'
       redirect '/signup'
     else
-      lock_info = redlock_client.lock(
-        "activation_token_email:#{@activation_user.username}",
-        ACTIVATION_TOKEN_EMAIL_COOLDOWN_IN_SEC * 1000,
-      )
-      if lock_info
-        @activation_token = SecureRandom.hex(16)
-        redis_client.set(
-          "activation_token:#{@activation_user.username}",
-          @activation_token,
-          ex: ACTIVATION_TOKEN_LIFESPAN_IN_SEC,
-        )
-        mail(
-          to: @activation_user.email,
-          subject: "Confirmation of new time-caddy account for username #{@activation_user.username}",
-          body: erb(:activation_email),
-        )
-      end
+
       # if you can't get the lock, just silently present the next page - the
       # lock is to prevent people from refreshing the page repeatedly and
       # generating a ton of emails
@@ -233,6 +269,8 @@ class TimeCaddy < Sinatra::Base
     if !user
       flash[:errors] = "No username or email address was found matching #{params[:username_or_email]}."
       redirect '/login'
+    elsif !user.active?
+      # todo
     elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
       flash[:errors] = 'Wrong username/password combination.'
       redirect '/login'

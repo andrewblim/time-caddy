@@ -50,7 +50,12 @@ class TimeCaddy < Sinatra::Base
       )
     end
 
-    def set_signup_confirmation_tokens(username:, url_token:, signup_token_hash:, signup_token_salt:)
+    def create_signup_confirmation_tokens(username:)
+      signup_token = SecureRandom.hex(16)
+      signup_token_salt = BCrypt::Engine.generate_salt
+      signup_token_hash = BCrypt::Engine.hash_secret(signup_token, signup_token_salt)
+      signup_url_token = SecureRandom.hex(16)
+
       redis_client.multi do
         redis_client.set(
           "signup_confirmation_email:#{username}",
@@ -58,7 +63,7 @@ class TimeCaddy < Sinatra::Base
           ex: User::SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC,
         )
         redis_client.set(
-          "signup_confirmation_url_token:#{url_token}",
+          "signup_confirmation_url_token:#{signup_url_token}",
           username,
           ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
         )
@@ -73,6 +78,8 @@ class TimeCaddy < Sinatra::Base
           ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
         )
       end
+
+      { confirm_token: signup_token, url_token: signup_url_token }
     end
 
     def clear_signup_confirmation_tokens(url_token:)
@@ -176,7 +183,7 @@ class TimeCaddy < Sinatra::Base
       return
     end
 
-    # Create user
+    # Create user, generate tokens, send email
     password_salt = BCrypt::Engine.generate_salt
     password_hash = BCrypt::Engine.hash_secret(params[:password], password_salt)
     @new_user = User.create(
@@ -189,33 +196,14 @@ class TimeCaddy < Sinatra::Base
       disabled: false,
       default_tz: params[:default_tz],
     )
-
-    # Generate URL token for signup_confirmation and send email with token
-    # and confirmation instructions. The signup_confirmation_email key is a
-    # safety measure to prevent us from sending too many emails, in case someone
-    # requests new confirmation emails repeatedly.
-    unless redis_client.get("signup_confirmation_email:#{@new_user.username}")
-      @signup_confirmation_token = SecureRandom.hex(16)
-      signup_confirmation_token_salt = BCrypt::Engine.generate_salt
-      signup_confirmation_token_hash = BCrypt::Engine.hash_secret(
-        @signup_confirmation_token_hash,
-        signup_confirmation_token_salt,
-      )
-      @signup_confirmation_url_token = SecureRandom.hex(16)
-
-      set_signup_confirmation_tokens(
-        username: @new_user.username,
-        url_token: @signup_confirmation_token,
-        signup_token_hash: signup_confirmation_token_hash,
-        signup_token_salt: signup_confirmation_token_salt,
-      )
-      mail(
-        to: @new_user.email,
-        subject: "Confirmation of new time-caddy account for username #{@new_user.username}",
-        body: erb(:signup_confirmation_email),
-      )
-    end
-
+    tokens = create_signup_confirmation_tokens(username: @new_user.username)
+    @signup_confirmation_token = tokens[:confirm_token]
+    @signup_confirmation_url_token = tokens[:url_token]
+    mail(
+      to: @new_user.email,
+      subject: "Confirmation of new time-caddy account for username #{@new_user.username}",
+      body: erb(:signup_confirmation_email),
+    )
     redirect "/signup_confirmation?token=#{@signup_confirmation_url_token}"
   end
 
@@ -305,6 +293,38 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/resend_signup_confirmation' do
+    @new_user = User.find_by(email: params[:email])
+    check_time = Time.now
+    if @new_user && @new_user.unconfirmed_stale?(check_time)
+      @new_user.destroy
+      @new_user = nil
+    end
+    if @new_user.nil?
+      flash[:errors] = "The user with email with #{params[:email]} was not found. If you signed up more than "\
+        "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for maintenance and "\
+        'security we delete users that appear to be orphaned while awaiting confirmation. Please try signing up again.'
+      redirect '/signup'
+      return
+    elsif @new_user.confirmed?(check_time)
+      flash[:alerts] = 'Your account has already been confirmed! You can log in.'
+      redirect '/login'
+    elsif redis_client.get("signup_confirmation_email:#{@new_user.username}")
+      flash[:alerts] = 'A confirmation email has already been sent within the last '\
+        "#{User::SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC / 60} minutes. Please check your email, double-check your "\
+        "spam filters and other email folders, and request again if it doesn't show up. If you continue not to "\
+        "receive the confirmation email, contact #{settings.support_email}."
+      redirect '/login'
+    else
+      tokens = create_signup_confirmation_tokens(username: @new_user.username)
+      @signup_confirmation_token = tokens[:confirm_token]
+      @signup_confirmation_url_token = tokens[:url_token]
+      mail(
+        to: @new_user.email,
+        subject: "Confirmation of new time-caddy account for username #{@new_user.username}",
+        body: erb(:signup_confirmation_email),
+      )
+      redirect "/signup_confirmation?token=#{@signup_confirmation_url_token}"
+    end
   end
 
   get '/login' do

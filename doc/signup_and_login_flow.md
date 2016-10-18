@@ -119,5 +119,4 @@ Although the signup and password reset flows would typically be done by a user w
 
 ## To-do
 
-- Add user flag for disabling access, which when toggled should forcibly log users out on their next request and should prevent logins, signup confirmations, and password resets.
 - Add more robust configuration for what to do when email is not available.

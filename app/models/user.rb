@@ -24,13 +24,12 @@ class User < ActiveRecord::Base
   end
 
   # User signup states:
+  #
   #   - signed up, not confirmed, but signed up recently (fresh)
   #   - signed up, not confirmed, and signup happened a while ago (stale)
   #   - signup up and confirmed
   #
-  # Additionally, the disabled flag may be set to true in any of these states,
-  # but that is something that is checked separately, as the app should decide
-  # what can and can't be done with a disabled account.
+  # Additionally, the disabled flag may be set to true in any of these states.
 
   def unconfirmed_fresh?(as_of = Time.now)
     (signup_confirmation_time.nil? || signup_confirmation_time > as_of) &&
@@ -57,8 +56,23 @@ class User < ActiveRecord::Base
   end
 
   # Used to stop too many password reset requests from happening at once
-
   def recent_password_reset_requests_count(window: Time.now.advance(hours: -24)..Time.now)
     password_reset_requests.where(request_time: window).count
+  end
+
+  def disable
+    update(disabled: true)
+  end
+
+  def disable!
+    update!(disabled: true)
+  end
+
+  def enable
+    update(disabled: false)
+  end
+
+  def enable!
+    update!(disabled: false)
   end
 end

@@ -250,8 +250,12 @@ class TimeCaddy < Sinatra::Base
         "signup. Please try signing up again. If this happens again, please contact #{settings.support_email}."
       redirect '/signup'
       return
+    elsif @new_user.disabled
+      flash[:errors] = 'Your account has been disabled.'
+      redirect '/login'
+      return
     elsif @new_user.confirmed?(check_time)
-      flash[:alerts] = 'Your account has already been confirmed! You can log in.'
+      flash[:alerts] = 'Your account has already been confirmed!'
       redirect '/login'
       return
     end
@@ -301,8 +305,11 @@ class TimeCaddy < Sinatra::Base
         "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for maintenance and "\
         'security we delete users that appear to be orphaned while awaiting confirmation. Please try signing up again.'
       redirect '/signup'
+    elsif @new_user.disabled
+      flash[:errors] = 'Your account has been disabled.'
+      redirect '/login'
     elsif @new_user.confirmed?(check_time)
-      flash[:alerts] = 'Your account has already been confirmed! You can log in.'
+      flash[:alerts] = 'Your account has already been confirmed!'
       redirect '/login'
     elsif redis_client.get("signup_confirmation_email:#{@new_user.username}")
       flash[:alerts] = 'A confirmation email has already been sent within the last '\
@@ -340,6 +347,9 @@ class TimeCaddy < Sinatra::Base
         "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for maintenance and "\
         'security we delete users that appear to be orphaned while awaiting confirmation. Please try signing up again.'
       redirect '/signup'
+    elsif @password_reset_user.disabled
+      flash[:errors] = 'Your account has been disabled.'
+      redirect '/login'
     elsif @password_reset_user.unconfirmed_fresh?
       flash[:errors] = "Your account is created but still not activated, which is why you can't log in. Please follow "\
         "the instructions in the email that was sent to you. If it's been a while and you haven't received the email, "\
@@ -405,7 +415,18 @@ class TimeCaddy < Sinatra::Base
       return
     end
 
-    submitted_token_hash = BCrypt::Engine.hash_secret(params[:password_reset_token], reset_request.password_reset_token_salt)
+    user = reset_request.user
+    if user.disabled
+      reset_request.update(active: false)
+      flash[:errors] = 'The user associated with this password reset request has been disabled.'
+      redirect '/login'
+      return
+    end
+
+    submitted_token_hash = BCrypt::Engine.hash_secret(
+      params[:password_reset_token],
+      reset_request.password_reset_token_salt,
+    )
     if reset_request.password_reset_token_hash != submitted_token_hash
       reset_request.update(active: false)
       flash[:errors] = 'Invalid password reset confirmation code, please re-request a password reset if you need one.'
@@ -415,14 +436,14 @@ class TimeCaddy < Sinatra::Base
 
     password_salt = BCrypt::Engine.generate_salt
     password_hash = BCrypt::Engine.hash_secret(params[:new_password], password_salt)
-    unless reset_request.user.update(password_hash: password_hash, password_salt: password_salt)
+    if user.update(password_hash: password_hash, password_salt: password_salt)
+      reset_request.update(active: false)
+      flash[:alerts] = 'Your password has been successfully reset.'
+      redirect '/login'
+    else
       flash[:errors] = "Technical issue resetting password, please contact #{settings.support_email}."
       redirect '/password_reset_request'
-      return
     end
-
-    flash[:alerts] = 'Your password has been successfully reset.'
-    redirect '/login'
   end
 
   get '/login' do
@@ -433,6 +454,9 @@ class TimeCaddy < Sinatra::Base
     user = User.find_by_username_or_email(params[:username_or_email])
     if user.nil?
       flash[:errors] = "No username or email address was found matching #{params[:username_or_email]}."
+      redirect '/login'
+    elsif user.disabled
+      flash[:errors] = 'Your account has been disabled.'
       redirect '/login'
     elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
       flash[:errors] = 'Wrong username/password combination'

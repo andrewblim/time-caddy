@@ -11,15 +11,12 @@ require 'bcrypt'
 require 'email_validator'
 require 'pony'
 require 'redis'
-require 'redlock'
 
 require 'require_all'
 require_all 'app/models/**/*.rb'
 
 class TimeCaddy < Sinatra::Base
   MAX_RECENT_PASSWORD_RESET_REQUESTS = 5
-  SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC = 5 * 60
-  SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC = 30 * 60
 
   register Sinatra::ActiveRecordExtension
   register Sinatra::ConfigFile
@@ -36,17 +33,12 @@ class TimeCaddy < Sinatra::Base
       db: settings.redis['db'],
     )
     set :redis_client, redis_client
-    set :redlock_client, Redlock::Client.new([redis_client])
   end
 
   helpers AppMailer
   helpers do
     def redis_client
       settings.redis_client
-    end
-
-    def redlock_client
-      settings.redlock_client
     end
 
     def base_url(request)
@@ -56,6 +48,40 @@ class TimeCaddy < Sinatra::Base
         port: request.port == 80 ? nil : request.port,
         path: '/',
       )
+    end
+
+    def set_signup_confirmation_tokens(username:, url_token:, signup_token_hash:, signup_token_salt:)
+      redis_client.multi do
+        redis_client.set(
+          "signup_confirmation_email:#{username}",
+          true,
+          ex: User::SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC,
+        )
+        redis_client.set(
+          "signup_confirmation_url_token:#{url_token}",
+          username,
+          ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
+        )
+        redis_client.set(
+          "signup_confirmation_token_hash:#{username}",
+          signup_token_hash,
+          ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
+        )
+        redis_client.set(
+          "signup_confirmation_token_salt:#{username}",
+          signup_token_salt,
+          ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
+        )
+      end
+    end
+
+    def clear_signup_confirmation_tokens(url_token:)
+      username = redis_client.get("signup_confirmation_url_token:#{url_token}")
+      redis_client.del("signup_confirmation_url_token:#{url_token}")
+      return unless username
+      redis_client.del("signup_confirmation_email:#{username}")
+      redis_client.del("signup_confirmation_token_hash:#{username}")
+      redis_client.del("signup_confirmation_token_salt:#{username}")
     end
   end
 
@@ -83,7 +109,7 @@ class TimeCaddy < Sinatra::Base
   get '/signup' do
     if session[:username]
       flash.now[:warnings] = "You are already logged in as #{session[:username]}, though you can still create a new "\
-                             'account for some other username/email address if you want.'
+        'account for some other username/email address if you want.'
     end
     haml :signup
   end
@@ -128,8 +154,8 @@ class TimeCaddy < Sinatra::Base
         signup_errors << "There is already a user with username #{params[:username]}."
       elsif user.unconfirmed_fresh?(check_time)
         signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up less than "\
-                         "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If this is you and you need the "\
-                         "confirmation email to be resent, <a href='/resend_signup_confirmation'>click here</a>."
+          "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If this is you and you need the confirmation email to "\
+          "be resent, <a href='/resend_signup_confirmation'>click here</a>."
       else
         user.destroy
       end
@@ -165,36 +191,24 @@ class TimeCaddy < Sinatra::Base
     )
 
     # Generate URL token for signup_confirmation and send email with token
-    # and confirmation instructions. The redlock prevents too many emails from
-    # going out at once.
-    lock_info = redlock_client.lock(
-      "signup_confirmation_email:#{@activation_user.username}",
-      SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC * 1000,
-    )
-    if lock_info
+    # and confirmation instructions. The signup_confirmation_email key is a
+    # safety measure to prevent us from sending too many emails, in case someone
+    # requests new confirmation emails repeatedly.
+    unless redis_client.get("signup_confirmation_email:#{@new_user.username}")
       @signup_confirmation_token = SecureRandom.hex(16)
       signup_confirmation_token_salt = BCrypt::Engine.generate_salt
-      signup_confirmation_token_hash = BCrypt::Engine.hash_secret(@signup_confirmation_token_hash, signup_confirmation_token_salt)
+      signup_confirmation_token_hash = BCrypt::Engine.hash_secret(
+        @signup_confirmation_token_hash,
+        signup_confirmation_token_salt,
+      )
       @signup_confirmation_url_token = SecureRandom.hex(16)
 
-      redis_client.multi do
-        redis_client.set(
-          "signup_confirmation_url_token:#{signup_confirmation_url_token}",
-          @new_user.username,
-          ex: SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
-        )
-        redis_client.set(
-          "signup_confirmation_token_hash:#{@new_user.username}",
-          signup_confirmation_token_hash,
-          ex: SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
-        )
-        redis_client.set(
-          "signup_confirmation_token_salt:#{@new_user.username}",
-          signup_confirmation_token_salt,
-          ex: SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
-        )
-      end
-
+      set_signup_confirmation_tokens(
+        username: @new_user.username,
+        url_token: @signup_confirmation_token,
+        signup_token_hash: signup_confirmation_token_hash,
+        signup_token_salt: signup_confirmation_token_salt,
+      )
       mail(
         to: @new_user.email,
         subject: "Confirmation of new time-caddy account for username #{@new_user.username}",
@@ -205,55 +219,92 @@ class TimeCaddy < Sinatra::Base
     redirect "/signup_confirmation?token=#{@signup_confirmation_url_token}"
   end
 
-  get '/resend_signup_confirmation' do
-    haml :resend_signup_confirmation
-  end
-
-  post '/resend_signup_confirmation' do
-  end
-
-  get '/signup_confirmation/:username' do |username|
-    @activation_user = User.find_by(username: username)
-    if @activation_user.nil?
-      flash[:errors] = 'It looks like you hit the signup confirmation page for a user that has not been created! '\
-                       'Please try signing up again.'
-      redirect '/signup'
-    elsif @activation_user.active?
-      flash[:alerts] = "User #{@activation_user.username} has already been activated and can log in and use the app."
-      redirect '/login'
-    elsif !@activation_user.inactive_but_fresh?
-      # only destroy the User on next signup attempt so that this can remain a GET
-      flash[:errors] = 'Your original signup was too long ago and we have deactivated it. Please try '\
-                       '<a href="/signup">signing up</a> again if you would like an account.'
-      redirect '/signup'
+  get '/signup_confirmation' do
+    @signup_confirmation_url_token = params[:token]
+    if @signup_confirmation_url_token.nil?
+      flash[:errors] = 'You attempted to view the signup confirmation page with no token. If you just created a new '\
+        'account, please follow the instructions in the signup confirmation email you received. If you need a new '\
+        'confirmation email sent to you, fill out the form below.'
+      redirect '/resend_signup_confirmation'
+    elsif redis_client.get("signup_confirmation_url_token:#{@signup_confirmation_url_token}").nil?
+      flash[:errors] = 'Your signup confirmation request has expired (they expire after a while for security '\
+        'reasons). Please request a new one below.'
+      redirect '/resend_signup_confirmation'
     else
-
-      # if you can't get the lock, just silently present the next page - the
-      # lock is to prevent people from refreshing the page repeatedly and
-      # generating a ton of emails
       haml :signup_confirmation
     end
   end
 
   post '/signup_confirmation' do
-    user = User.find_by(username: params[:username])
-    unless user
-      flash[:errors] = "User #{params[:username]} was not found - try signing up for an account again."
-      redirect '/signup'
+    signup_confirmation_url_token = params[:token]
+    unless signup_confirmation_url_token
+      flash[:errors] = 'You attempted to view the signup confirmation with no token. If you just created a new '\
+        'account, please follow the instructions in the signup confirmation email you received. If you need a new '\
+        'confirmation email, fill out the form below.'
+      redirect '/resend_signup_confirmation'
+      return
+    end
+    username = redis_client.get("signup_confirmation_url_token:#{signup_confirmation_url_token}")
+    unless username
+      clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
+      flash[:errors] = 'Your signup confirmation request has expired (they expire after a while for security '\
+        'reasons). Please request a new one below.'
+      redirect '/resend_signup_confirmation'
+      return
     end
 
-    token = redis_client.get("activation_token:#{params[:username]}")
-    if token.nil?
-      flash[:errors] = 'Your confirmation code has expired. We have sent a new one.'
-      redirect "/signup_confirmation/#{params[:username]}"
-    elsif token != params[:activation_token]
+    @new_user = User.find_by(username: username)
+    check_time = Time.now
+    if @new_user && @new_user.unconfirmed_stale?(check_time)
+      # This shouldn't happen unless someone has manually edited something so
+      # that confirmation URL token is valid for longer than it takes @new_user
+      # to go stale.
+      @new_user.destroy
+      @new_user = nil
+    end
+    if @new_user.nil?
+      # This shouldn't happen unless the above case occurs or someone has
+      # manually removed the user from the database.
+      flash[:errors] = 'For some reason, the user you were creating was not successfully saved into our databases at '\
+        "signup. Please try signing up again. If this happens again, please contact #{settings.support_email}."
+      redirect '/signup'
+      return
+    elsif @new_user.confirmed?(check_time)
+      flash[:alerts] = 'Your account has already been confirmed! You can log in.'
+      redirect '/login'
+      return
+    end
+
+    token_hash, token_salt = redis_client.mget(
+      redis_client.get("signup_confirmation_token_hash:#{username}"),
+      redis_client.get("signup_confirmation_token_salt:#{username}"),
+    )
+    unless token_hash && token_salt
+      # real corner case, in case they expired between username retrieval and
+      # token hash/salt retrieval
+      clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
+      flash[:errors] = 'Your signup confirmation request has expired (they expire after a while for security '\
+        'reasons). Please request a new one below.'
+      redirect '/resend_signup_confirmation'
+      return
+    end
+
+    if token_hash != BCrypt::Engine.hash_secret(params[:signup_confirmation_token], token_salt)
       flash[:errors] = 'Incorrect confirmation code.'
-      redirect "/signup_confirmation/#{params[:username]}"
+      redirect "/signup_confirmation?token=#{signup_confirmation_url_token}"
     else
       user.activate
-      flash[:alerts] = 'Your account has been activated successfully!'
+      clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
+      flash[:alerts] = 'Your account has been confirmed successfully!'
       redirect '/login'
     end
+  end
+
+  get '/resend_signup_confirmation' do
+    haml :resend_signup_confirmation
+  end
+
+  post '/resend_signup_confirmation' do
   end
 
   get '/login' do

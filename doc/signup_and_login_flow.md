@@ -18,7 +18,6 @@ Main workflow:
   - If user does not exist, or exists and is stale:
     - Destroy user if it exists
     - Create new user in an inactive state
-    - Expire all pre-existing Redis keys
     - Create activation_token and salt, store hashed activation_token and salt in Redis with username-based keys and a short expiry
     - Create signup_confirmation_url_token, store username in Redis with signup_confirmation_url_token-based key and the same short expiry
     - Send email with activation_token and link to `/signup_confirmation?token=<signup_confirmation_url_token>`
@@ -26,9 +25,11 @@ Main workflow:
   - If user exists and is not active and not stale, redirect to `/signup`
   - If user exists and is already active, redirect to `/signup`
 - GET `/signup_confirmation?token=<signup_confirmation_url_token>`
+  - If signup_confirmation_url_token is not provided, redirect to `/resend_signup_confirmation`
   - If signup_confirmation_url_token key does not exist (i.e. expired), redirect to `/resend_signup_confirmation`
   - If signup_confirmation_url_token key exists, display signup confirmation token form
 - POST `/signup_confirmation`
+  - If signup_confirmation_url_token is not provided, redirect to `/resend_signup_confirmation`
   - If signup_confirmation_url_token key does not exist (i.e. expired), redirect to `/resend_signup_confirmation`
   - Otherwise, get username from signup_confirmation_url_token
   - If user does not exist, or exists and is stale:
@@ -36,12 +37,12 @@ Main workflow:
     - Redirect to `/signup`
   - If user exists and is not active and not stale:
     - If the activation_token and salt do not exist (i.e. expired):
-      - Expire all Redis keys
+      - Expire all signup confirmation token Redis keys, just in case
       - Redirect to `/resend_signup_confirmation`
     - If the submitted token does not match activation_token and salt, redirect to `/signup_confirmation?token=<signup_token>`
     - If the submitted token matches:
       - Activate user
-      - Expire all Redis keys
+      - Expire all signup confirmation token Redis keys
       - Redirect to `/login`
   - If user exists and is already active, redirect to `/login`
 

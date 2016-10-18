@@ -21,7 +21,7 @@ Metrics/ClassLength:
   Max: 500
 
 Metrics/LineLength:
-  Max: 140
+  Max: 120
 
 Metrics/MethodLength:
   CountComments: false

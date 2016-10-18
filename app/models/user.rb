@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 class User < ActiveRecord::Base
+  SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC = 5 * 60
+  SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC = 60 * 60
   INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS = 7
 
   has_many :password_reset_requests
@@ -31,7 +33,7 @@ class User < ActiveRecord::Base
   # what can and can't be done with a disabled account.
 
   def unconfirmed_fresh?(as_of = Time.now)
-      (signup_confirmation_time.nil? || signup_confirmation_time > as_of) &&
+    (signup_confirmation_time.nil? || signup_confirmation_time > as_of) &&
       signup_time.advance(days: INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS) > as_of
   end
 

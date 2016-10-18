@@ -68,9 +68,12 @@ class TimeCaddy < Sinatra::Base
           set_status = redis_client.setnx(
             "signup_confirmation_url_token:#{signup_url_token}",
             username,
-            ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
           )
-          break if set_status == 1
+          expire_status = redis_client.expire(
+            "signup_confirmation_url_token:#{signup_url_token}",
+            User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
+          )
+          break if set_status && expire_status
         end
         redis_client.set(
           "signup_confirmation_token_hash:#{username}",
@@ -193,7 +196,7 @@ class TimeCaddy < Sinatra::Base
       password_hash: password_hash,
       password_salt: password_salt,
       signup_time: Time.now.utc,
-      activation_time: nil,
+      signup_confirmation_time: nil,
       disabled: false,
       default_tz: params[:default_tz],
     )
@@ -210,16 +213,16 @@ class TimeCaddy < Sinatra::Base
       subject: "Confirmation of new time-caddy account for username #{@new_user.username}",
       body: erb(:signup_confirmation_email),
     )
-    redirect "/signup_confirmation?token=#{@signup_confirmation_url_token}"
+    redirect "/signup_confirmation?url_token=#{@signup_confirmation_url_token}"
   end
 
   get '/signup_confirmation' do
-    @signup_confirmation_url_token = params[:token] || ''
+    @signup_confirmation_url_token = params[:url_token] || ''
     haml :signup_confirmation
   end
 
   post '/signup_confirmation' do
-    signup_confirmation_url_token = params[:token]
+    signup_confirmation_url_token = params[:url_token]
     unless signup_confirmation_url_token
       flash[:errors] = 'Invalid signup confirmation token'
       redirect '/resend_signup_confirmation'
@@ -274,9 +277,9 @@ class TimeCaddy < Sinatra::Base
       return
     end
 
-    if token_hash != BCrypt::Engine.hash_secret(params[:signup_confirmation_token], token_salt)
+    if token_hash != BCrypt::Engine.hash_secret(params[:confirm_token], token_salt)
       flash[:errors] = 'Incorrect confirmation code.'
-      redirect "/signup_confirmation?token=#{signup_confirmation_url_token}"
+      redirect "/signup_confirmation?url_token=#{signup_confirmation_url_token}"
     elsif user.confirm_signup
       clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
       flash[:alerts] = 'Your account has been confirmed successfully!'
@@ -284,7 +287,7 @@ class TimeCaddy < Sinatra::Base
     else
       flash[:errors] = 'Sorry, we ran into an error saving your data! Please try again, and if it happens again, '\
         "contact #{settings.support_email}."
-      redirect "/signup_confirmation?token=#{signup_confirmation_url_token}"
+      redirect "/signup_confirmation?url_token=#{signup_confirmation_url_token}"
     end
   end
 
@@ -326,7 +329,7 @@ class TimeCaddy < Sinatra::Base
         subject: "Confirmation of new time-caddy account for username #{@new_user.username}",
         body: erb(:signup_confirmation_email),
       )
-      redirect "/signup_confirmation?token=#{@signup_confirmation_url_token}"
+      redirect "/signup_confirmation?url_token=#{@signup_confirmation_url_token}"
     end
   end
 
@@ -395,12 +398,12 @@ class TimeCaddy < Sinatra::Base
   end
 
   get '/password_reset' do
-    @password_reset_url_token = params[:token] || ''
+    @password_reset_url_token = params[:url_token] || ''
     haml :password_reset
   end
 
   post '/password_reset' do
-    @password_reset_url_token = params[:token]
+    @password_reset_url_token = params[:url_token]
     if @password_reset_url_token.nil?
       flash[:errors] = 'Invalid password reset token, please re-request a password reset if you need one.'
       redirect '/password_reset_request'
@@ -423,10 +426,7 @@ class TimeCaddy < Sinatra::Base
       return
     end
 
-    submitted_token_hash = BCrypt::Engine.hash_secret(
-      params[:password_reset_token],
-      reset_request.password_reset_token_salt,
-    )
+    submitted_token_hash = BCrypt::Engine.hash_secret(params[:confirm_token], reset_request.password_reset_token_salt)
     if reset_request.password_reset_token_hash != submitted_token_hash
       reset_request.update(active: false)
       flash[:errors] = 'Invalid password reset confirmation code, please re-request a password reset if you need one.'

@@ -20,11 +20,11 @@ Main workflow:
     - Create new user in an inactive state
     - Create activation_token and salt, store hashed activation_token and salt in Redis with username-based keys and a short expiry
     - Create signup_confirmation_url_token, store username in Redis with signup_confirmation_url_token-based key and the same short expiry
-    - Send email with activation_token and link to `/signup_confirmation?token=<signup_confirmation_url_token>`
-    - Redirect to `/signup_confirmation?token=<signup_token>`
+    - Send email with activation_token and link to `/signup_confirmation?url_token=<signup_confirmation_url_token>`
+    - Redirect to `/signup_confirmation?url_token=<signup_token>`
   - If user exists and is not active and not stale, redirect to `/signup`
   - If user exists and is already active, redirect to `/signup`
-- GET `/signup_confirmation?token=<signup_confirmation_url_token>`
+- GET `/signup_confirmation?url_token=<signup_confirmation_url_token>`
   - Display signup confirmation token form
 - POST `/signup_confirmation`
   - If signup_confirmation_url_token is not provided, redirect to `/resend_signup_confirmation`
@@ -37,7 +37,7 @@ Main workflow:
     - If the activation_token and salt do not exist (i.e. expired):
       - Expire all signup confirmation token Redis keys, just in case
       - Redirect to `/resend_signup_confirmation`
-    - If the submitted token does not match activation_token and salt, redirect to `/signup_confirmation?token=<signup_token>`
+    - If the submitted token does not match activation_token and salt, redirect to `/signup_confirmation?url_token=<signup_token>`
     - If the submitted token matches:
       - Activate user
       - Expire all signup confirmation token Redis keys
@@ -71,9 +71,9 @@ Password resets:
     - Create password_reset_token and salt
     - Create active password reset request entry with token and salt
     - Create password_reset_url_token, store email in Redis with password_reset_url_token-based key and a short expiry
-    - Send email with password_reset_token and link to `/password_reset?token=<password_reset_url_token>`
+    - Send email with password_reset_token and link to `/password_reset?url_token=<password_reset_url_token>`
     - Don't redirect them, just display a notice telling them to check their email
-- GET `/password_reset?token=<password_reset_url_token>`
+- GET `/password_reset?url_token=<password_reset_url_token>`
   - Display password reset token form, which has fields for the token and the new password
 - POST `/password_reset`
   - If password_reset_url_token key does not exist (i.e. expired), redirect to `/password_reset_request`
@@ -84,7 +84,7 @@ Password resets:
   - If user exists and is not active and not stale, redirect to `/password_reset_request` (don't reset an inactive user)
   - If user exists and is active:
     - Retrieve the most recent active password request
-    - If the submitted token does not match this request's token and salt, redirect to `/password_reset?token=<password_reset_url_token>`
+    - If the submitted token does not match this request's token and salt, redirect to `/password_reset?url_token=<password_reset_url_token>`
     - If the submitted token matches:
       - Create salt, set user's password hash and salt to new values
       - Redirect to `/login` (don't actually log in ourselves)

@@ -15,10 +15,10 @@
           %p We have sent an email to you with a confirmation code. Please enter it below to activate your account.
           %form{action: '/signup_confirmation', method: 'post'}
             .form-group
-              %input#username{type: 'hidden', name: 'signup_confirmation_url_token', value: @signup_confirmation_url_token}
+              %input#url_token{type: 'hidden', name: 'url_token', value: @signup_confirmation_url_token}
             .form-group
-              %label{for: 'signup_confirmation_token'} Confirmation code
-              %input#activation_token.form-control{type: 'text', name: 'signup_confirmation_token'}
+              %label{for: 'confirm_token'} Confirmation code
+              %input#confirm_token.form-control{type: 'text', name: 'confirm_token'}
             .form-group
               %input#submit.btn.btn-default{type: 'submit', value: 'Confirm'}
         - else

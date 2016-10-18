@@ -119,7 +119,7 @@ Stale users effectively don't exist, and every time we have the opportunity to d
 
 ## Logged-in users
 
-Although the signup and password reset flows would typically be done by a user who is not logged in, it is OK to do it while logged in as a user. However, a flash warning will appear on all of the GET responses that point this out and suggest visiting the user settings page instead.
+Although the signup and password reset flows would typically be done by a user who is not logged in, it is OK to do it while logged in as a user. However, a warning will appear on all of the GET responses that point this out and suggest visiting the user settings page instead.
 
 ## To-do
 

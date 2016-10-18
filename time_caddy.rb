@@ -114,10 +114,6 @@ class TimeCaddy < Sinatra::Base
   # basic framework here
 
   get '/signup' do
-    if session[:username]
-      flash.now[:warnings] = "You are already logged in as #{session[:username]}, though you can still create a new "\
-        'account for some other username/email address if you want.'
-    end
     haml :signup
   end
 
@@ -327,42 +323,7 @@ class TimeCaddy < Sinatra::Base
     end
   end
 
-  get '/login' do
-    if session[:username]
-      flash.now[:warnings] = "You are already logged in as #{session[:username]}. If you log in successfully below, "\
-                             "we will log you out as #{session[:username]} first."
-    end
-    haml :login
-  end
-
-  post '/login' do
-    user = User.find_by_username_or_email(params[:username_or_email])
-    if !user
-      flash[:errors] = "No username or email address was found matching #{params[:username_or_email]}."
-      redirect '/login'
-    elsif !user.active?
-      # todo
-    elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
-      flash[:errors] = 'Wrong username/password combination.'
-      redirect '/login'
-    else
-      session[:username] = user.username
-      redirect '/'
-    end
-  end
-
-  post '/logout' do
-    session[:username] = nil
-    flash.discard # just making sure nothing makes its way out of here
-    redirect '/'
-  end
-
   get '/password_reset_request' do
-    if session[:username]
-      flash.now[:warnings] = "You are already logged in as #{session[:username]}. This page is meant for users who "\
-                             "have forgotten their passwords and can't log in. If you can log in and just want to "\
-                             'change your password, go to the <a href="/settings">settings</a> page.'
-    end
     haml :password_reset_request
   end
 
@@ -415,5 +376,31 @@ class TimeCaddy < Sinatra::Base
 
   post '/password_reset' do
     # todo
+  end
+
+  get '/login' do
+    haml :login
+  end
+
+  post '/login' do
+    user = User.find_by_username_or_email(params[:username_or_email])
+    if !user
+      flash[:errors] = "No username or email address was found matching #{params[:username_or_email]}."
+      redirect '/login'
+    elsif !user.active?
+      # todo
+    elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
+      flash[:errors] = 'Wrong username/password combination.'
+      redirect '/login'
+    else
+      session[:username] = user.username
+      redirect '/'
+    end
+  end
+
+  post '/logout' do
+    session[:username] = nil
+    flash.discard # just making sure nothing makes its way out of here
+    redirect '/'
   end
 end

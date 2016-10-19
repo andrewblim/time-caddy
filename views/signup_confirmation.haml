@@ -3,10 +3,10 @@
   %head
     %title time-caddy signup confirmation
     = haml :'partials/bootstrap_header'
-    = haml :'partials/jquery'
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
     = haml :'partials/navbar', locals: { user: @user, hide_login: true }
+    
     .container-fluid
       = haml :'partials/flash'
       .col-md-4.col-md-offset-4

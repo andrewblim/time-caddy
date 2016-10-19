@@ -1,7 +1,7 @@
 !!! 5
 %html
   %head
-    %title time-caddy reset password request
+    %title time-caddy signup confirmation
     = haml :'partials/bootstrap_header'
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
@@ -13,7 +13,7 @@
         %h2 Signup confirmation pending
         - if settings.email_enabled && locals[:resend]
           %p
-            We have resent a signup confirmation email to the email address indicated. Please follow the directions there. 
+            We have resent a signup confirmation email to the email address indicated. Please follow the directions there.
         - elsif settings.email_enabled
           %p
             We have sent a signup confirmation email, to verify that you are the person indicated by the email address. Please follow the directions there. If you don't see it after several minutes,

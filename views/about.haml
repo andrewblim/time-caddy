@@ -6,8 +6,10 @@
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
     = haml :'partials/navbar', locals: { user: @user }
+    
     .container-fluid
       .col-md-10.col-md-offset-1
+        %h2 About
         %p
           time-caddy is a time-tracking app. Its goals are:
           %ul

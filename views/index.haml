@@ -8,32 +8,33 @@
     = haml :'partials/navbar', locals: { user: @user }
 
     .container-fluid
-      - if @user
-        %p= "Hello, #{@user.username}."
-        %p
-          Add an entry:
-          %textarea
-        %p
-          Current entries:
-          %table
-            %th
-              %td ID
-              %td Start at
-              %td Finish at
-              %td Description
-              %td Tags
-            %tr
-              %td
-                - @user.log_entries.each do |log_entry|
-                  %td= "#{log_entry.id}"
-                  %td= "#{log_entry.start_at}"
-                  %td= "#{log_entry.finish_at}"
-                  %td= "#{log_entry.description}"
-                  %td= "#{log_entry.tags.map(&:name)}"
-      - else
-        %p
-          Hello, anonymous.
-          %a{href: "/login"} Log in
-          if you already have an account.
-          %a{href: "/signup"} Sign up
-          if you don't.
+      .col-md-10.col-md-offset-1
+        - if @user
+          %p= "Hello, #{@user.username}."
+          %p
+            Add an entry:
+            %textarea
+          %p
+            Current entries:
+            %table
+              %th
+                %td ID
+                %td Start at
+                %td Finish at
+                %td Description
+                %td Tags
+              %tr
+                %td
+                  - @user.log_entries.each do |log_entry|
+                    %td= "#{log_entry.id}"
+                    %td= "#{log_entry.start_at}"
+                    %td= "#{log_entry.finish_at}"
+                    %td= "#{log_entry.description}"
+                    %td= "#{log_entry.tags.map(&:name)}"
+        - else
+          %p
+            Hello, anonymous.
+            %a{href: "/login"} Log in
+            if you already have an account.
+            %a{href: "/signup"} Sign up
+            if you don't.

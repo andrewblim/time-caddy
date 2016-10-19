@@ -2,13 +2,13 @@
 %html
   %head
     %title time-caddy reset password request
-    = haml :_bootstrap_header
+    = haml :'partials/bootstrap_header'
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
-    = haml :_navbar, locals: { user: @user, hide_login: true }
+    = haml :'partials/navbar', locals: { user: @user, hide_login: true }
 
     .container-fluid
-      = haml :_flash
+      = haml :'partials/flash'
       .col-md-4.col-md-offset-4
         %h2 Signup confirmation pending
         - if settings.email_enabled && locals[:resend]

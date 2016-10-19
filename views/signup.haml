@@ -2,8 +2,8 @@
 %html
   %head
     %title time-caddy signup
-    = haml :_bootstrap_header
-    = haml :_jquery
+    = haml :'partials/bootstrap_header'
+    = haml :'partials/jquery'
     %link{rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css'}
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
     %script{src: 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js'}
@@ -42,9 +42,9 @@
         });
       });
   %body
-    = haml :_navbar, locals: { user: @user, hide_login: true }
+    = haml :'partials/navbar', locals: { user: @user, hide_login: true }
     .container-fluid
-      = haml :_flash
+      = haml :'partials/flash'
       .col-md-4.col-md-offset-4
         %p
           Sign up for a new account below. If you already have an account,

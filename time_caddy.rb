@@ -211,7 +211,7 @@ class TimeCaddy < Sinatra::Base
     mail(
       to: @new_user.email,
       subject: "time-caddy signup confirmation for username #{@new_user.username}",
-      body: erb(:signup_confirmation_email),
+      body: erb(:'emails/signup_confirmation_email'),
     )
     haml :signup_confirmation_pending, locals: { resend: false }
   end
@@ -314,7 +314,7 @@ class TimeCaddy < Sinatra::Base
       mail(
         to: @new_user.email,
         subject: "time-caddy signup confirmation for username #{@new_user.username}",
-        body: erb(:signup_confirmation_email),
+        body: erb(:'emails/signup_confirmation_email'),
       )
       haml :signup_confirmation_pending, locals: { resend: true }
     end
@@ -368,9 +368,8 @@ class TimeCaddy < Sinatra::Base
         mail(
           to: @password_reset_user.email,
           subject: "Password reset request for time-caddy username #{@password_reset_user.username}",
-          body: erb(:password_reset_request_email),
+          body: erb(:'emails/password_reset_request'),
         )
-        # no redirect, just tell them to check email and follow link
         haml :password_reset_pending
       else
         flash[:errors] = "Technical issue creating a password reset request, please contact #{settings.support_email}."

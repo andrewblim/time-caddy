@@ -2,10 +2,10 @@
 %html
   %head
     %title time-caddy
-    = haml :_bootstrap_header
+    = haml :'partials/bootstrap_header'
     %link{rel: 'stylesheet', href: '/stylesheets/basic.css'}
   %body
-    = haml :_navbar, locals: { user: @user }
+    = haml :'partials/navbar', locals: { user: @user }
 
     .container-fluid
       - if @user

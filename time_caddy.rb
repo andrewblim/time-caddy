@@ -436,7 +436,7 @@ class TimeCaddy < Sinatra::Base
     elsif user.disabled
       flash[:errors] = 'Your account has been disabled.'
       redirect back
-    elsif user.unconfirmed_fresh
+    elsif user.unconfirmed_fresh?
       flash[:errors] = 'Your account has been created, but you have not yet confirmed it. Please follow the '\
         'instructions in the email that was sent to you, or <a href="/resend_signup_confirmation">request '
         'a new email</a> if needed.'

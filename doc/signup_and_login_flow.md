@@ -113,10 +113,22 @@ As can be seen by the above workflows, the user states that we have to worry abo
 
 Stale users effectively don't exist, and every time we have the opportunity to destroy them on a POST we do so.
 
+## Token emails
+
+There are two places above where we send email confirmation requests before permitting site visitors to take the next step:
+
+1. when confirming a new signup
+2. when trying to reset a password
+
+In both cases, the email contains a randomly generated confirmation token `confirm_token` and a URL with a randomly generated token `url_token` parameter. The user needs to visit the URL and enter the confirmation token. This provides two levels of security:
+
+- You need a valid `url_token` to begin with.
+- Even if someone gets a valid `url_token` somehow, maybe by guessing, maybe because the actual user clicked the link and someone intercepted the request (as it's a GET, the `url_token` is stored right there in the URL), you still can't confirm the account without the `confirm_token`.
+
+If someone has both the link and the token, they can reset the password or confirm the account. However, there is a very slight additional layer of protection in that if they don't know the associated username or email address, they still can't log in, because the app does not display it at any point after the user visits the URL in the email.
+
+If someone has the link, the token, and the username or email address, as would happen if an unauthorized user had access to the user's email account, then there are no further safeguards (other than that we disallow too many confirmation emails to go out within a short period of time). The ability to read a user's email will break through all of these safeguards.
+
 ## Logged-in users
 
-Although the signup and password reset flows would typically be done by a user who is not logged in, it is OK to do it while logged in as a user. However, a warning will appear on all of the GET responses that point this out and suggest visiting the user settings page instead.
-
-## To-do
-
-- Add more robust configuration for what to do when email is not available.
+Although the signup and password reset flows would typically be done by a user who is not logged in, it is OK to do it while logged in as a user. However, a warning will appear on all of the GET responses that suggest visiting the user settings page instead.

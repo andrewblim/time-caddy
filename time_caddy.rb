@@ -297,11 +297,10 @@ class TimeCaddy < Sinatra::Base
       flash[:alerts] = 'Your account has already been confirmed!'
       redirect '/login'
     elsif redis_client.get("signup_confirmation_email:#{@new_user.username}")
-      flash[:alerts] = 'A confirmation email has already been sent within the last '\
-        "#{User::SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC / 60} minutes. Please check your email, double-check your "\
-        "spam filters and other email folders, and request again if it doesn't show up. If you continue not to "\
-        "receive the confirmation email, contact #{settings.support_email}."
-      redirect '/login'
+      flash[:alerts] = "A confirmation email has already been sent recently to #{params[:email]}. Please double-check "\
+        "your email, including spam filters and other folders, and request another if it doesn't show up. If you "\
+        "continue not to receive the confirmation email, contact #{settings.support_email}."
+      redirect '/resend_signup_confirmation'
     else
       tokens = create_signup_confirmation_tokens(username: @new_user.username)
       @signup_confirmation_token = tokens[:confirm_token]
@@ -386,7 +385,6 @@ class TimeCaddy < Sinatra::Base
       redirect '/password_reset_request'
       return
     end
-
     reset_request = PasswordResetRequest.find(password_reset_url_token: @password_reset_url_token, active: true)
     if reset_request.nil? || !reset_request.usable?
       reset_request.update(active: false) if reset_request
@@ -394,7 +392,6 @@ class TimeCaddy < Sinatra::Base
       redirect '/password_reset_request'
       return
     end
-
     user = reset_request.user
     if user.disabled
       reset_request.update(active: false)
@@ -402,7 +399,6 @@ class TimeCaddy < Sinatra::Base
       redirect '/login'
       return
     end
-
     submitted_token_hash = BCrypt::Engine.hash_secret(params[:confirm_token], reset_request.password_reset_token_salt)
     if reset_request.password_reset_token_hash != submitted_token_hash
       reset_request.update(active: false)
@@ -439,7 +435,7 @@ class TimeCaddy < Sinatra::Base
     elsif user.unconfirmed_fresh?
       flash[:errors] = 'Your account has been created, but you have not yet confirmed it. Please follow the '\
         'instructions in the email that was sent to you, or <a href="/resend_signup_confirmation">request '
-        'a new email</a> if needed.'
+        'a new confirmation email</a> if needed.'
       redirect back
     elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
       flash[:errors] = 'Wrong username/password combination'

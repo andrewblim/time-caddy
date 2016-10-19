@@ -255,8 +255,8 @@ class TimeCaddy < Sinatra::Base
     end
 
     token_hash, token_salt = redis_client.mget(
-      redis_client.get("signup_confirmation_token_hash:#{username}"),
-      redis_client.get("signup_confirmation_token_salt:#{username}"),
+      "signup_confirmation_token_hash:#{username}",
+      "signup_confirmation_token_salt:#{username}",
     )
     unless token_hash && token_salt
       # real corner case, in case they expired between username retrieval and
@@ -271,7 +271,7 @@ class TimeCaddy < Sinatra::Base
     if token_hash != BCrypt::Engine.hash_secret(params[:confirm_token], token_salt)
       flash[:errors] = 'Incorrect confirmation code.'
       redirect back
-    elsif user.confirm_signup
+    elsif @new_user.confirm_signup
       clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
       flash[:alerts] = 'Your account has been confirmed successfully!'
       redirect '/login'

@@ -207,12 +207,13 @@ class TimeCaddy < Sinatra::Base
     tokens = create_signup_confirmation_tokens(username: @new_user.username)
     @signup_confirmation_token = tokens[:confirm_token]
     @signup_confirmation_url_token = tokens[:url_token]
+
     mail(
       to: @new_user.email,
-      subject: "Confirmation of new time-caddy account for username #{@new_user.username}",
+      subject: "time-caddy signup confirmation for username #{@new_user.username}",
       body: erb(:signup_confirmation_email),
     )
-    redirect "/signup_confirmation?url_token=#{@signup_confirmation_url_token}"
+    haml :signup_confirmation_pending, locals: { resend: false }
   end
 
   get '/signup_confirmation' do
@@ -309,12 +310,13 @@ class TimeCaddy < Sinatra::Base
       tokens = create_signup_confirmation_tokens(username: @new_user.username)
       @signup_confirmation_token = tokens[:confirm_token]
       @signup_confirmation_url_token = tokens[:url_token]
+
       mail(
         to: @new_user.email,
-        subject: "Confirmation of new time-caddy account for username #{@new_user.username}",
+        subject: "time-caddy signup confirmation for username #{@new_user.username}",
         body: erb(:signup_confirmation_email),
       )
-      redirect "/signup_confirmation?url_token=#{@signup_confirmation_url_token}"
+      haml :signup_confirmation_pending, locals: { resend: true }
     end
   end
 
@@ -369,7 +371,7 @@ class TimeCaddy < Sinatra::Base
           body: erb(:password_reset_request_email),
         )
         # no redirect, just tell them to check email and follow link
-        haml :password_reset_request_complete
+        haml :password_reset_pending
       else
         flash[:errors] = "Technical issue creating a password reset request, please contact #{settings.support_email}."
         redirect back

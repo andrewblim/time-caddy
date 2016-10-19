@@ -1,14 +1,14 @@
-Hello <%= @new_user.username %>,
+Hello,
 
-You or someone with your email address has tried to sign up for a time-caddy account. We require email confirmation before activating your account, so that we can be sure it's really you. Your confirmation code is
+Someone has tried to sign up for a time-caddy account with this email address. Hopefully it was you! But we require email confirmation before activating your account, so that we can be sure that it really was you. If it wasn't you, please disregard this email. 
+
+Your confirmation code is
 
 <%= "#{@signup_confirmation_token}\n" %>
 
-Please enter the code on the signup confirmation page that you are already on. In case you've navigated away, it's
+Please enter this code on the following signup confirmation page:
 
 <%= "#{URI.join(base_url(request), "/signup_confirmation?url_token=#{@signup_confirmation_url_token}")}\n" %>
-
-If you've re-requested a confirmation code, the information in this email supersedes that in other signup confirmation emails sent before this one.
 
 Thanks,
 time-caddy

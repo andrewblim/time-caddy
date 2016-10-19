@@ -21,9 +21,9 @@ Main workflow:
     - Create activation_token and salt, store hashed activation_token and salt in Redis with username-based keys and a short expiry
     - Create signup_confirmation_url_token, store username in Redis with signup_confirmation_url_token-based key and the same short expiry
     - Send email with activation_token and link to `/signup_confirmation?url_token=<signup_confirmation_url_token>`
-    - Redirect to `/signup_confirmation?url_token=<signup_token>`
-  - If user exists and is not active and not stale, redirect to `/signup`
-  - If user exists and is already active, redirect to `/signup`
+    - Display page instructing user to follow instructions in email (no redirection)
+  - If user exists and is not active and not stale, redirect back
+  - If user exists and is already active, redirect back
 - GET `/signup_confirmation?url_token=<signup_confirmation_url_token>`
   - Display signup confirmation token form
 - POST `/signup_confirmation`
@@ -37,7 +37,7 @@ Main workflow:
     - If the activation_token and salt do not exist (i.e. expired):
       - Expire all signup confirmation token Redis keys, just in case
       - Redirect to `/resend_signup_confirmation`
-    - If the submitted token does not match activation_token and salt, redirect to `/signup_confirmation?url_token=<signup_token>`
+    - If the submitted token does not match activation_token and salt, redirect back
     - If the submitted token matches:
       - Activate user
       - Expire all signup confirmation token Redis keys
@@ -53,7 +53,7 @@ Resending signup confirmation, in case the normal one didn't work or something:
     - Destroy user if it exists
     - Redirect to `/signup`
   - If user exists and is not active and not stale:
-    - Same stuff as POST `/signup`, when user does not exist/exists and is stale, except for user creation
+    - Same stuff as POST `/signup` when user does not exist/exists and is stale, except for user creation
   - If user exists and is already active, redirect to `/login`
 
 Password resets:
@@ -72,7 +72,7 @@ Password resets:
     - Create active password reset request entry with token and salt
     - Create password_reset_url_token, store email in Redis with password_reset_url_token-based key and a short expiry
     - Send email with password_reset_token and link to `/password_reset?url_token=<password_reset_url_token>`
-    - Don't redirect them, just display a notice telling them to check their email
+    - Display page instructing user to follow instructions in email (no redirection)
 - GET `/password_reset?url_token=<password_reset_url_token>`
   - Display password reset token form, which has fields for the token and the new password
 - POST `/password_reset`
@@ -84,7 +84,7 @@ Password resets:
   - If user exists and is not active and not stale, redirect to `/password_reset_request` (don't reset an inactive user)
   - If user exists and is active:
     - Retrieve the most recent active password request
-    - If the submitted token does not match this request's token and salt, redirect to `/password_reset?url_token=<password_reset_url_token>`
+    - If the submitted token does not match this request's token and salt, redirect back
     - If the submitted token matches:
       - Create salt, set user's password hash and salt to new values
       - Redirect to `/login` (don't actually log in ourselves)

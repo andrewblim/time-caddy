@@ -127,7 +127,6 @@ class TimeCaddy < Sinatra::Base
 
   post '/signup' do
     # verify that the form was filled out reasonably
-
     signup_errors = []
     if !params[:username].length.between?(1, 40)
       signup_errors << 'Your username must be 1-40 characters long.'
@@ -153,7 +152,7 @@ class TimeCaddy < Sinatra::Base
     # don't even bother hitting the database if we have errors at this point
     unless signup_errors.blank?
       flash[:errors] = signup_errors
-      redirect '/signup'
+      redirect back
       return
     end
 
@@ -183,7 +182,7 @@ class TimeCaddy < Sinatra::Base
     end
     unless signup_errors.blank?
       flash[:errors] = signup_errors
-      redirect '/signup'
+      redirect back
       return
     end
 
@@ -202,7 +201,7 @@ class TimeCaddy < Sinatra::Base
     )
     unless @new_user
       flash[:errors] = "Technical issue saving the new user to the database, please contact #{settings.support_email}."
-      redirect '/signup'
+      redirect back
       return
     end
     tokens = create_signup_confirmation_tokens(username: @new_user.username)
@@ -237,25 +236,16 @@ class TimeCaddy < Sinatra::Base
       return
     end
 
-    @new_user = User.find_by(username: username)
     check_time = Time.now
-    if @new_user && @new_user.unconfirmed_stale?(check_time)
-      # This shouldn't happen unless someone has manually edited something so
-      # that confirmation URL token is valid for longer than it takes @new_user
-      # to go stale.
-      @new_user.destroy
-      @new_user = nil
-    end
+    @new_user = User.find_by(username: username)&.destroy_and_disregard_unconfirmed_stale(check_time)
     if @new_user.nil?
-      # This shouldn't happen unless the above case occurs or someone has
-      # manually removed the user from the database.
       flash[:errors] = 'For some reason, the user you were creating was not successfully saved into our databases at '\
         "signup. Please try signing up again. If this happens again, please contact #{settings.support_email}."
       redirect '/signup'
       return
     elsif @new_user.disabled
       flash[:errors] = 'Your account has been disabled.'
-      redirect '/login'
+      redirect back
       return
     elsif @new_user.confirmed?(check_time)
       flash[:alerts] = 'Your account has already been confirmed!'
@@ -279,15 +269,15 @@ class TimeCaddy < Sinatra::Base
 
     if token_hash != BCrypt::Engine.hash_secret(params[:confirm_token], token_salt)
       flash[:errors] = 'Incorrect confirmation code.'
-      redirect "/signup_confirmation?url_token=#{signup_confirmation_url_token}"
+      redirect back
     elsif user.confirm_signup
       clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
       flash[:alerts] = 'Your account has been confirmed successfully!'
       redirect '/login'
     else
-      flash[:errors] = 'Sorry, we ran into an error saving your data! Please try again, and if it happens again, '\
-        "contact #{settings.support_email}."
-      redirect "/signup_confirmation?url_token=#{signup_confirmation_url_token}"
+      flash[:errors] = 'Sorry, we ran into a technical error saving your account confirmation! Please try again, and '\
+        "if it happens again, contact #{settings.support_email}."
+      redirect back
     end
   end
 
@@ -296,13 +286,8 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/resend_signup_confirmation' do
-    @new_user = User.find_by(email: params[:email])
     check_time = Time.now
-    if @new_user && @new_user.unconfirmed_stale?(check_time)
-      @new_user.destroy
-      @new_user = nil
-    end
-
+    @new_user = User.find_by(email: params[:email])&.destroy_and_disregard_unconfirmed_stale(check_time)
     if @new_user.nil?
       flash[:errors] = "The user with email with #{params[:email]} was not found. If you signed up more than "\
         "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for maintenance and "\
@@ -310,7 +295,7 @@ class TimeCaddy < Sinatra::Base
       redirect '/signup'
     elsif @new_user.disabled
       flash[:errors] = 'Your account has been disabled.'
-      redirect '/login'
+      redirect back
     elsif @new_user.confirmed?(check_time)
       flash[:alerts] = 'Your account has already been confirmed!'
       redirect '/login'
@@ -338,13 +323,8 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/password_reset_request' do
-    @password_reset_user = User.find_by(email: params[:email])
     check_time = Time.now
-    if @password_reset_user && @password_reset_user.unconfirmed_stale?(check_time)
-      @password_reset_user.destroy
-      @password_reset_user = nil
-    end
-
+    @password_reset_user = User.find_by(email: params[:email])&.destroy_and_disregard_unconfirmed_stale(check_time)
     if @password_reset_user.nil?
       flash[:errors] = "No user with email #{params[:email]} was found. If you signed up more than "\
         "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for maintenance and "\
@@ -352,16 +332,16 @@ class TimeCaddy < Sinatra::Base
       redirect '/signup'
     elsif @password_reset_user.disabled
       flash[:errors] = 'Your account has been disabled.'
-      redirect '/login'
+      redirect back
     elsif @password_reset_user.unconfirmed_fresh?
       flash[:errors] = "Your account is created but still not activated, which is why you can't log in. Please follow "\
         "the instructions in the email that was sent to you. If it's been a while and you haven't received the email, "\
         '<a href="/resend_signup_confirmation">click here</a>.'
-      redirect '/password_reset_request'
+      redirect back
     elsif @password_reset_user.recent_password_reset_requests_count > MAX_RECENT_PASSWORD_RESET_REQUESTS
       flash[:errors] = "There have been too many recent password reset requests for #{params[:email]}. "\
         "You can either wait a while, or contact #{settings.support_email} for help."
-      redirect '/password_reset_request'
+      redirect back
     else
       @password_reset_token = SecureRandom.hex(16)
       password_reset_token_salt = BCrypt::Engine.generate_salt
@@ -381,19 +361,19 @@ class TimeCaddy < Sinatra::Base
           active: true,
         )
       end
-      unless reset_request
-        flash[:errors] = "Technical issue creating a password reset request, please contact #{settings.support_email}."
-        redirect '/password_reset_request'
-        return
-      end
 
-      mail(
-        to: @password_reset_user.email,
-        subject: "Password reset request for time-caddy username #{@password_reset_user.username}",
-        body: erb(:password_reset_request_email),
-      )
-      # no redirect, just tell them to check email and follow link
-      haml :password_reset_request_complete
+      if reset_request.nil?
+        mail(
+          to: @password_reset_user.email,
+          subject: "Password reset request for time-caddy username #{@password_reset_user.username}",
+          body: erb(:password_reset_request_email),
+        )
+        # no redirect, just tell them to check email and follow link
+        haml :password_reset_request_complete
+      else
+        flash[:errors] = "Technical issue creating a password reset request, please contact #{settings.support_email}."
+        redirect back
+      end
     end
   end
 
@@ -429,9 +409,8 @@ class TimeCaddy < Sinatra::Base
     submitted_token_hash = BCrypt::Engine.hash_secret(params[:confirm_token], reset_request.password_reset_token_salt)
     if reset_request.password_reset_token_hash != submitted_token_hash
       reset_request.update(active: false)
-      flash[:errors] = 'Invalid password reset confirmation code, please re-request a password reset if you need one.'
-      redirect '/password_reset_request'
-      return
+      flash[:errors] = 'Invalid password reset confirmation code.'
+      redirect back
     end
 
     password_salt = BCrypt::Engine.generate_salt
@@ -442,7 +421,7 @@ class TimeCaddy < Sinatra::Base
       redirect '/login'
     else
       flash[:errors] = "Technical issue resetting password, please contact #{settings.support_email}."
-      redirect '/password_reset_request'
+      redirect back
     end
   end
 
@@ -457,10 +436,10 @@ class TimeCaddy < Sinatra::Base
       redirect '/login'
     elsif user.disabled
       flash[:errors] = 'Your account has been disabled.'
-      redirect '/login'
+      redirect back
     elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
       flash[:errors] = 'Wrong username/password combination'
-      redirect '/login'
+      redirect back
     else
       session[:username] = user.username
       redirect '/'

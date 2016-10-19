@@ -15,14 +15,6 @@ class User < ActiveRecord::Base
     end
   end
 
-  def self.find_by_username_or_email!(username_or_email)
-    if EmailValidator.valid?(username_or_email)
-      find_by!(email: username_or_email)
-    else
-      find_by!(username: username_or_email)
-    end
-  end
-
   # User signup states:
   #
   #   - signed up, not confirmed, but signed up recently (fresh)
@@ -55,6 +47,13 @@ class User < ActiveRecord::Base
     update!(signup_confirmation_time: as_of)
   end
 
+  # Convenience, as unconfirmed_stale users are destroyed at first opportunity
+  def destroy_and_disregard_unconfirmed_stale(as_of = Time.now)
+    return self unless unconfirmed_stale?(as_of)
+    destroy
+    nil
+  end
+
   # Used to stop too many password reset requests from happening at once
   def recent_password_reset_requests_count(window: Time.now.advance(hours: -24)..Time.now)
     password_reset_requests.where(request_time: window).count
@@ -64,15 +63,7 @@ class User < ActiveRecord::Base
     update(disabled: true)
   end
 
-  def disable!
-    update!(disabled: true)
-  end
-
   def enable
     update(disabled: false)
-  end
-
-  def enable!
-    update!(disabled: false)
   end
 end

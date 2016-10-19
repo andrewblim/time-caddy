@@ -8,8 +8,8 @@
     = haml :'partials/navbar', locals: { user: @user, hide_login: true }
 
     .container-fluid
-      = haml :'partials/flash'
       .col-md-4.col-md-offset-4
+        = haml :'partials/flash'
         %h2 Signup confirmation pending
         - if settings.email_enabled && locals[:resend]
           %p

@@ -8,12 +8,14 @@
     = haml :'partials/navbar', locals: { user: @user, hide_login: true }
 
     .container-fluid
-      = haml :'partials/flash'
       .col-md-4.col-md-offset-4
+        = haml :'partials/flash'
         %h2 Login
         %p
           Log in below. If you don't already have an account,
           %a{href: '/signup'} sign up.
+          If you have signed up but need a new signup confirmation email,
+          %a{href: '/resend_signup_confirmation'} request another one.
           If you have forgotten your password,
           %a{href: '/password_reset_request'} request a reset.
         %form{action: '/login', method: 'post'}

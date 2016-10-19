@@ -1,7 +1,6 @@
 - %i(errors warnings alerts).each do |flash_type|
   - if flash[flash_type]
-    .col-md-4.col-md-offset-4
-      .flash{class: flash_type.to_s}
-        %ul
-          - Array(flash[flash_type]).each do |msg|
-            %li= msg
+    .flash{class: flash_type.to_s}
+      %ul
+        - Array(flash[flash_type]).each do |msg|
+          %li= msg

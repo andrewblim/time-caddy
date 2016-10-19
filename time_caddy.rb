@@ -159,25 +159,21 @@ class TimeCaddy < Sinatra::Base
     # If the user already exists and is not stale, redirect back with a helpful
     # flash error. If the user exists but is stale, destroy it.
     check_time = Time.now
-    if (user = User.find_by(username: params[:username]))
+    if (user = User.find_by(username: params[:username])&.destroy_and_disregard_unconfirmed_stale(check_time))
       if user.confirmed?(check_time)
         signup_errors << "There is already a user with username #{params[:username]}."
       elsif user.unconfirmed_fresh?(check_time)
-        signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up less than "\
-          "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If this is you and you need the confirmation email to "\
-          "be resent, <a href='/resend_signup_confirmation'>click here</a>."
-      else
-        user.destroy
+        signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up recently. If "\
+          'this is you and you need the confirmation email to be resent, '\
+          '<a href="/resend_signup_confirmation">click here</a>.'
       end
-    elsif (user = User.find_by(email: params[:email]))
+    elsif (user = User.find_by(email: params[:email])&.destroy_and_disregard_unconfirmed_stale(check_time))
       if user.confirmed?(check_time)
         signup_errors << "There is already a user with email #{params[:email]}."
       elsif user.unconfirmed_fresh?(check_time)
-        signup_errors << "There is already a not-yet-activated user with email #{params[:email]} created less than "\
-          "than #{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago. If you need the activation email "\
-          "to be resent, <a href='/signup_confirmation/#{user.username}'>click here</a>."
-      else
-        user.destroy
+        signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up recently. If "\
+          'this is you and you need the confirmation email to be resent, '\
+          '<a href="/resend_signup_confirmation">click here</a>.'
       end
     end
     unless signup_errors.blank?
@@ -431,12 +427,19 @@ class TimeCaddy < Sinatra::Base
   end
 
   post '/login' do
+    check_time = Time.now
     user = User.find_by_username_or_email(params[:username_or_email])
+      &.destroy_and_disregard_unconfirmed_stale(check_time)
     if user.nil?
       flash[:errors] = "No username or email address was found matching #{params[:username_or_email]}."
       redirect '/login'
     elsif user.disabled
       flash[:errors] = 'Your account has been disabled.'
+      redirect back
+    elsif user.unconfirmed_fresh
+      flash[:errors] = 'Your account has been created, but you have not yet confirmed it. Please follow the '\
+        'instructions in the email that was sent to you, or <a href="/resend_signup_confirmation">request '
+        'a new email</a> if needed.'
       redirect back
     elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
       flash[:errors] = 'Wrong username/password combination'

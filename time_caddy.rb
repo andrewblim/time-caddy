@@ -434,7 +434,7 @@ class TimeCaddy < Sinatra::Base
       redirect back
     elsif user.unconfirmed_fresh?
       flash[:errors] = 'Your account has been created, but you have not yet confirmed it. Please follow the '\
-        'instructions in the email that was sent to you, or <a href="/resend_signup_confirmation">request '
+        'instructions in the email that was sent to you, or <a href="/resend_signup_confirmation">request '\
         'a new confirmation email</a> if needed.'
       redirect back
     elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)

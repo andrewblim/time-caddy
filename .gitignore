@@ -1,3 +1,4 @@
+.rspec
 .ruby-version
 bower_components/
 config/app.yml
@@ -5,3 +6,4 @@ config/database.yml
 db/**/*.db
 node_modules/
 public/scripts/dist
+spec/examples.txt

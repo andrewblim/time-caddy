@@ -21,6 +21,7 @@ gem 'tzinfo-data'
 gem 'unicorn'
 
 group :development, :test do
+  gem 'pry'
   gem 'rerun'
   gem 'rspec'
   gem 'rubocop'

@@ -22,6 +22,8 @@ GEM
     diff-lcs (1.2.5)
     email_validator (1.6.0)
       activemodel
+    factory_girl (4.3.0)
+      activesupport (>= 3.0.0)
     ffi (1.9.14)
     haml (4.0.4)
       tilt
@@ -136,6 +138,7 @@ DEPENDENCIES
   activerecord
   bcrypt
   email_validator
+  factory_girl
   haml
   pg
   pony

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 ENV['RACK_ENV'] ||= 'test'
 require_relative '../time_caddy'
+require 'factory_girl'
 require 'pry'
 require 'rspec'
 require 'rack/test'
@@ -13,6 +14,11 @@ module RSpecMixin
 end
 
 RSpec.configure do |config|
+  config.include FactoryGirl::Syntax::Methods
+  config.before(:suite) do
+    FactoryGirl.find_definitions
+  end
+
   config.expect_with :rspec do |expectations|
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true
   end

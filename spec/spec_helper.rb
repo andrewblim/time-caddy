@@ -1,13 +1,14 @@
 # frozen_string_literal: true
-
 ENV['RACK_ENV'] ||= 'test'
+require_relative '../time_caddy'
+require 'pry'
 require 'rspec'
 require 'rack/test'
 
 module RSpecMixin
   include Rack::Test::Methods
   def app
-    described_class
+    TimeCaddy
   end
 end
 

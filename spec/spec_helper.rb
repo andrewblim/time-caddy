@@ -42,12 +42,12 @@ RSpec.configure do |config|
 
   config.include RSpecMixin
 
-  config.before(:each) do
-    Timecop.freeze(Time.local(2101))
-  end
-
   config.around(:each) do |ex|
+    Timecop.freeze(Time.local(2101))
+    app.settings.redis_client.flushdb
     DatabaseCleaner.strategy = :transaction
     DatabaseCleaner.cleaning { ex.run }
+    app.settings.redis_client.flushdb
+    Timecop.return
   end
 end

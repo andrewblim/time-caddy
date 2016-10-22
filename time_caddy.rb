@@ -5,10 +5,10 @@ require 'sinatra/activerecord'
 require 'sinatra/base'
 require 'sinatra/config_file'
 require 'sinatra/flash'
-require 'haml'
 
 require 'bcrypt'
 require 'email_validator'
+require 'haml'
 require 'pony'
 require 'redis'
 
@@ -18,13 +18,16 @@ require_all 'app/models/**/*.rb'
 class TimeCaddy < Sinatra::Base
   MAX_RECENT_PASSWORD_RESET_REQUESTS = 5
 
+  set :root, File.dirname(__FILE__)
+  set :haml, format: :html5
+  set :views, Proc.new { File.join(root, 'app/views') }
+
   register Sinatra::ActiveRecordExtension
   register Sinatra::ConfigFile
   register Sinatra::Flash
 
   enable :sessions
 
-  set :haml, format: :html5
   configure  do
     config_file 'config/app.yml'
     redis_client = Redis.new(

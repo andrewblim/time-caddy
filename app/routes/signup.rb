@@ -1,4 +1,7 @@
 # frozen_string_literal: true
+require 'bcrypt'
+require 'email_validator'
+
 module Routes
   module Signup
     # h/t to https://gist.github.com/amscotti/1384524 for getting me going on the
@@ -109,7 +112,7 @@ module Routes
             redirect '/resend_signup_confirmation'
             return
           end
-          username = redis_client.get("signup_confirmation_url_token:#{signup_confirmation_url_token}")
+          username = settings.redis_client.get("signup_confirmation_url_token:#{signup_confirmation_url_token}")
           unless username
             clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
             flash[:errors] = 'Your signup confirmation request has expired (they expire after a while for security '\
@@ -135,7 +138,7 @@ module Routes
             return
           end
 
-          token_hash, token_salt = redis_client.mget(
+          token_hash, token_salt = settings.redis_client.mget(
             "signup_confirmation_token_hash:#{username}",
             "signup_confirmation_token_salt:#{username}",
           )
@@ -181,7 +184,7 @@ module Routes
           elsif @new_user.confirmed?(check_time)
             flash[:alerts] = 'Your account has already been confirmed!'
             redirect '/login'
-          elsif redis_client.get("signup_confirmation_email:#{@new_user.username}")
+          elsif settings.redis_client.get("signup_confirmation_email:#{@new_user.username}")
             flash[:alerts] = "A confirmation email has already been sent recently to #{params[:email]}. Please double-check "\
               "your email, including spam filters and other folders, and request another if it doesn't show up. If you "\
               "continue not to receive the confirmation email, contact #{settings.support_email}."

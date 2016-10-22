@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+require 'email_validator'
+
 class User < ActiveRecord::Base
   SIGNUP_CONFIRMATION_EMAIL_COOLDOWN_IN_SEC = 5 * 60
   SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC = 60 * 60

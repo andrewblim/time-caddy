@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+require 'bcrypt'
+
 module Routes
   module Login
     def self.registered(app)

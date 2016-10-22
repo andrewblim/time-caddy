@@ -21,7 +21,10 @@ class TimeCaddy < Sinatra::Base
   set :haml, format: :html5
   set :views, proc { File.join(root, 'app/views') }
 
+  register Sinatra::ActiveRecordExtension
   register Sinatra::ConfigFile
+  register Sinatra::Flash
+
   configure do
     config_file 'config/app.yml'
     set :redis_client, Redis.new(
@@ -32,21 +35,9 @@ class TimeCaddy < Sinatra::Base
     enable :sessions
   end
 
-  register Sinatra::ActiveRecordExtension
-  register Sinatra::Flash
-
   helpers Helpers::AppMailer
+  helpers Helpers::BuildURL
   helpers Helpers::ConfirmationTokens
-  helpers do
-    def base_url(request)
-      URI::Generic.build(
-        scheme: request.scheme,
-        host: request.host,
-        port: request.port == 80 ? nil : request.port,
-        path: '/',
-      )
-    end
-  end
 
   before do
     if session[:username].nil?

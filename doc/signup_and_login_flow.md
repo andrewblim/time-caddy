@@ -15,8 +15,7 @@ Main workflow:
 - GET `/signup`
   - Displays new account form
 - POST `/signup`
-  - If user does not exist, or exists and is stale:
-    - Destroy user if it exists
+  - If user does not exist, or exists and is stale (destroy if so):
     - Create new user in an inactive state
     - Create activation_token and salt, store hashed activation_token and salt in Redis with username-based keys and a short expiry
     - Create signup_confirmation_url_token, store username in Redis with signup_confirmation_url_token-based key and the same short expiry
@@ -30,9 +29,7 @@ Main workflow:
   - If signup_confirmation_url_token is not provided, redirect to `/resend_signup_confirmation`
   - If signup_confirmation_url_token key does not exist (i.e. expired), redirect to `/resend_signup_confirmation`
   - Otherwise, get username from signup_confirmation_url_token
-  - If user does not exist, or exists and is stale:
-    - Destroy user if it exists
-    - Redirect to `/signup`
+  - If user does not exist, or exists and is stale (destroy if so), redirect to `/signup`
   - If user exists and is not active and not stale:
     - If the activation_token and salt do not exist (i.e. expired):
       - Expire all signup confirmation token Redis keys, just in case
@@ -49,9 +46,7 @@ Resending signup confirmation, in case the normal one didn't work or something:
 - GET `/resend_signup_confirmation`
   - Display form asking for the email address (not username) to which to send a new confirmation
 - POST `/resend_signup_confirmation`
-  - If user does not exist, or exists and is stale:
-    - Destroy user if it exists
-    - Redirect to `/signup`
+  - If user does not exist, or exists and is stale (destroy if so), redirect to `/signup`
   - If user exists and is not active and not stale:
     - Same stuff as POST `/signup` when user does not exist/exists and is stale, except for user creation
   - If user exists and is already active, redirect to `/login`
@@ -61,9 +56,7 @@ Password resets:
 - GET `/password_reset_request`
   - Display form asking for the email address (not username) to which to send a new password reset request
 - POST `/password_reset_request`
-  - If user does not exist, or exists and is stale:
-    - Destroy user if it exists
-    - Redirect to `/signup`
+  - If user does not exist, or exists and is stale (destroy if so), redirect to `/signup`
   - If user exists and is not active and not stale, redirect to `/resend_signup_confirmation` (don't reset an inactive user)
   - If user exists and is active:
     - If there have been too many recent password reset requests, redirect to `/password_reset_request`
@@ -78,9 +71,7 @@ Password resets:
 - POST `/password_reset`
   - If password_reset_url_token key does not exist (i.e. expired), redirect to `/password_reset_request`
   - Otherwise, get username from password_reset_url_token
-  - If user does not exist, or exists and is stale:
-    - Destroy user if it exists
-    - Redirect to `/signup`
+  - If user does not exist, or exists and is stale (destroy if so), redirect to `/signup`
   - If user exists and is not active and not stale, redirect to `/password_reset_request` (don't reset an inactive user)
   - If user exists and is active:
     - Retrieve the most recent active password request

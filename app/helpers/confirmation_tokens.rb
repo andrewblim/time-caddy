@@ -44,7 +44,7 @@ module Helpers
       { confirm_token: signup_token, url_token: signup_url_token }
     end
 
-    def clear_signup_confirmation_tokens(url_token:)
+    def clear_signup_confirmation_tokens(url_token:, redis_client: settings.redis_client)
       username = redis_client.get("signup_confirmation_url_token:#{url_token}")
       redis_client.del("signup_confirmation_url_token:#{url_token}")
       return unless username

@@ -93,12 +93,22 @@ module Routes
           @signup_confirmation_token = tokens[:confirm_token]
           @signup_confirmation_url_token = tokens[:url_token]
 
-          mail(
-            to: @new_user.email,
-            subject: "time-caddy signup confirmation for username #{@new_user.username}",
-            body: erb(:'emails/signup_confirmation_email'),
-          )
-          haml :signup_confirmation_pending, locals: { resend: false }
+          if @signup_confirmation_token && @signup_confirmation_url_token
+            @signup_confirmation_url = build_url(
+              request,
+              path: '/signup_confirmation',
+              query: "url_token=#{@signup_confirmation_url_token}",
+            )
+            mail(
+              to: @new_user.email,
+              subject: "time-caddy signup confirmation for username #{@new_user.username}",
+              body: erb(:'emails/signup_confirmation_email'),
+            )
+            haml :signup_confirmation_pending, locals: { resend: false }
+          else
+            flash[:errors] = "Technical issue creating the new account, please contact #{settings.support_email}."
+            redirect back
+          end
         end
 
         get '/signup_confirmation' do
@@ -197,12 +207,22 @@ module Routes
             @signup_confirmation_token = tokens[:confirm_token]
             @signup_confirmation_url_token = tokens[:url_token]
 
-            mail(
-              to: @new_user.email,
-              subject: "time-caddy signup confirmation for username #{@new_user.username}",
-              body: erb(:'emails/signup_confirmation_email'),
-            )
-            haml :signup_confirmation_pending, locals: { resend: true }
+            if @signup_confirmation_token && @signup_confirmation_url_token
+              @signup_confirmation_url = build_url(
+                request,
+                path: '/signup_confirmation',
+                query: "url_token=#{@signup_confirmation_url_token}",
+              )
+              mail(
+                to: @new_user.email,
+                subject: "time-caddy signup confirmation for username #{@new_user.username}",
+                body: erb(:'emails/signup_confirmation_email'),
+              )
+              haml :signup_confirmation_pending, locals: { resend: true }
+            else
+              flash[:errors] = "Technical issue creating the new account, please contact #{settings.support_email}."
+              redirect back
+            end
           end
         end
       end

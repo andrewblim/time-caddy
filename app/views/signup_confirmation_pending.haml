@@ -17,6 +17,6 @@
         - elsif settings.email_enabled
           %p
             We have sent a signup confirmation email, to verify that you are the person indicated by the email address. Please follow the directions there. If you don't see it after several minutes,
-          %a{href: '/resend_signup_confirmation'} request a resend.
+            %a{href: '/resend_signup_confirmation'} request a resend.
         - else
           %p= "Please contact #{settings.support_email} to confirm your account."

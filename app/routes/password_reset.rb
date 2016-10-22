@@ -52,6 +52,11 @@ module Routes
             end
 
             if reset_request.nil?
+              @password_reset_url = build_url(
+                request,
+                path: '/password_reset',
+                query: "url_token=#{@password_reset_url_token}",
+              )
               mail(
                 to: @password_reset_user.email,
                 subject: "Password reset request for time-caddy username #{@password_reset_user.username}",

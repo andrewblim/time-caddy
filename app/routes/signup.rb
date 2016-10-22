@@ -51,16 +51,16 @@ module Routes
             if user.confirmed?(check_time)
               signup_errors << "There is already a user with username #{params[:username]}."
             elsif user.unconfirmed_fresh?(check_time)
-              signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up recently. If "\
-                'this is you and you need the confirmation email to be resent, '\
+              signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up "\
+                'recently. If this is you and you need the confirmation email to be resent, '\
                 '<a href="/resend_signup_confirmation">click here</a>.'
             end
           elsif (user = User.find_by(email: params[:email])&.destroy_and_disregard_unconfirmed_stale(check_time))
             if user.confirmed?(check_time)
               signup_errors << "There is already a user with email #{params[:email]}."
             elsif user.unconfirmed_fresh?(check_time)
-              signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up recently. If "\
-                'this is you and you need the confirmation email to be resent, '\
+              signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up "\
+                'recently. If this is you and you need the confirmation email to be resent, '\
                 '<a href="/resend_signup_confirmation">click here</a>.'
             end
           end
@@ -84,7 +84,8 @@ module Routes
             default_tz: params[:default_tz],
           )
           unless @new_user
-            flash[:errors] = "Technical issue saving the new user to the database, please contact #{settings.support_email}."
+            flash[:errors] = 'Technical issue saving the new user to the database, please contact '\
+              "#{settings.support_email}."
             redirect back
             return
           end
@@ -124,8 +125,9 @@ module Routes
           check_time = Time.now
           @new_user = User.find_by(username: username)&.destroy_and_disregard_unconfirmed_stale(check_time)
           if @new_user.nil?
-            flash[:errors] = 'For some reason, the user you were creating was not successfully saved into our databases at '\
-              "signup. Please try signing up again. If this happens again, please contact #{settings.support_email}."
+            flash[:errors] = 'For some reason, the user you were creating was not successfully saved into our '\
+              'databases at signup. Please try signing up again. If this happens again, please contact '\
+              "#{settings.support_email}."
             redirect '/signup'
             return
           elsif @new_user.disabled
@@ -160,8 +162,8 @@ module Routes
             flash[:alerts] = 'Your account has been confirmed successfully!'
             redirect '/login'
           else
-            flash[:errors] = 'Sorry, we ran into a technical error saving your account confirmation! Please try again, and '\
-              "if it happens again, contact #{settings.support_email}."
+            flash[:errors] = 'Sorry, we ran into a technical error saving your account confirmation! Please try '\
+              "again, and if it happens again, contact #{settings.support_email}."
             redirect back
           end
         end
@@ -175,8 +177,9 @@ module Routes
           @new_user = User.find_by(email: params[:email])&.destroy_and_disregard_unconfirmed_stale(check_time)
           if @new_user.nil?
             flash[:errors] = "The user with email with #{params[:email]} was not found. If you signed up more than "\
-              "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for maintenance and "\
-              'security we delete users that appear to be orphaned while awaiting confirmation. Please try signing up again.'
+              "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for "\
+              'maintenance and security we delete users that appear to be orphaned while awaiting confirmation. '\
+              'Please try signing up again.'
             redirect '/signup'
           elsif @new_user.disabled
             flash[:errors] = 'Your account has been disabled.'
@@ -185,9 +188,9 @@ module Routes
             flash[:alerts] = 'Your account has already been confirmed!'
             redirect '/login'
           elsif settings.redis_client.get("signup_confirmation_email:#{@new_user.username}")
-            flash[:alerts] = "A confirmation email has already been sent recently to #{params[:email]}. Please double-check "\
-              "your email, including spam filters and other folders, and request another if it doesn't show up. If you "\
-              "continue not to receive the confirmation email, contact #{settings.support_email}."
+            flash[:alerts] = "A confirmation email has already been sent recently to #{params[:email]}. Please double-"\
+              "check your email, including spam filters and other folders, and request another if it doesn't show up. "\
+              "If you continue not to receive the confirmation email, contact #{settings.support_email}."
             redirect '/resend_signup_confirmation'
           else
             tokens = create_signup_confirmation_tokens(username: @new_user.username)

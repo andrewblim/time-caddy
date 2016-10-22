@@ -24,7 +24,7 @@ RSpec.configure do |config|
 
   config.filter_run_when_matching :focus
   config.disable_monkey_patching!
-  config.example_status_persistence_file_path = "spec/examples.txt"
+  config.example_status_persistence_file_path = 'spec/examples.txt'
 
   if config.files_to_run.one?
     config.default_formatter = 'doc'

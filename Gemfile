@@ -21,12 +21,14 @@ gem 'tzinfo-data'
 gem 'unicorn'
 
 group :development, :test do
+  gem 'database_cleaner'
   gem 'factory_girl'
   gem 'pry'
   gem 'rerun'
   gem 'rspec'
   gem 'rubocop'
   gem 'sqlite3'
+  gem 'timecop'
   gem 'tux'
 end
 

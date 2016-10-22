@@ -1,10 +1,14 @@
 # frozen_string_literal: true
+
 ENV['RACK_ENV'] ||= 'test'
+
 require_relative '../time_caddy'
+require 'database_cleaner'
 require 'factory_girl'
 require 'pry'
 require 'rspec'
 require 'rack/test'
+require 'timecop'
 
 module RSpecMixin
   include Rack::Test::Methods
@@ -22,7 +26,6 @@ RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true
   end
-
   config.mock_with :rspec do |mocks|
     mocks.verify_partial_doubles = true
   end
@@ -38,4 +41,13 @@ RSpec.configure do |config|
   end
 
   config.include RSpecMixin
+
+  config.before(:each) do
+    Timecop.freeze(Time.local(2101))
+  end
+
+  config.around(:each) do |ex|
+    DatabaseCleaner.strategy = :transaction
+    DatabaseCleaner.cleaning { ex.run }
+  end
 end

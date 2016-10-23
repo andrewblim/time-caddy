@@ -42,8 +42,8 @@ module Routes
 
           # Create user, generate tokens, send email
           unless @new_user.save
-            flash[:errors] = 'Technical issue saving the new user to the database, please contact '\
-              "#{settings.support_email}."
+            flash[:errors] = 'Technical issue saving the new user to the database, '\
+              "please contact #{settings.support_email}."
             redirect back
             return
           end
@@ -64,7 +64,8 @@ module Routes
             )
             haml :signup_confirmation_pending, locals: { resend: false }
           else
-            flash[:errors] = "Technical issue creating the new account, please contact #{settings.support_email}."
+            flash[:errors] = 'Technical issue creating the confirmation email, '\
+              "please contact #{settings.support_email}."
             redirect back
           end
         end
@@ -75,63 +76,62 @@ module Routes
         end
 
         post '/signup_confirmation' do
-          signup_confirmation_url_token = params[:url_token]
-          unless signup_confirmation_url_token
+          unless params[:url_token]
             flash[:errors] = 'Invalid signup confirmation token'
             redirect '/resend_signup_confirmation'
             return
           end
-          username = settings.redis_client.get("signup_confirmation_url_token:#{signup_confirmation_url_token}")
+          username = get_username_from_signup_confirmation(url_token: params[:url_token])
           unless username
-            clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
+            clear_signup_confirmation_tokens(url_token: params[:url_token])
             flash[:errors] = 'Your signup confirmation request has expired (they expire after a while for security '\
               'reasons). Please request a new one.'
             redirect '/resend_signup_confirmation'
             return
           end
 
-          check_time = Time.now
-          @new_user = User.find_by(username: username)&.destroy_and_disregard_unconfirmed_stale(check_time)
+          now = Time.now
+          User.destroy_unconfirmed_stale_by_username(params[:username], as_of: now)
+          User.destroy_unconfirmed_stale_by_email(params[:email], as_of: now)
+          @new_user = User.find_by(username: username)
           if @new_user.nil?
-            flash[:errors] = 'For some reason, the user you were creating was not successfully saved into our '\
-              'databases at signup. Please try signing up again. If this happens again, please contact '\
-              "#{settings.support_email}."
+            flash[:errors] = 'Technical issue retrieving user from confirmation email, '\
+              "please contact #{settings.support_email}."
             redirect '/signup'
             return
           elsif @new_user.disabled
             flash[:errors] = 'Your account has been disabled.'
             redirect back
             return
-          elsif @new_user.confirmed?(check_time)
+          elsif @new_user.confirmed?(now)
             flash[:alerts] = 'Your account has already been confirmed!'
             redirect '/login'
             return
           end
 
-          token_hash, token_salt = settings.redis_client.mget(
-            "signup_confirmation_token_hash:#{username}",
-            "signup_confirmation_token_salt:#{username}",
+          token_check = check_signup_confirmation_confirm_token(
+            username: username,
+            confirm_token: params[:confirm_token],
           )
-          unless token_hash && token_salt
+          if token_check.nil?
             # real corner case, in case they expired between username retrieval and
             # token hash/salt retrieval
-            clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
+            clear_signup_confirmation_tokens(url_token: params[:url_token])
             flash[:errors] = 'Your signup confirmation request has expired (they expire after a while for security '\
               'reasons). Please request a new one below.'
             redirect '/resend_signup_confirmation'
-            return
-          end
-
-          if token_hash != BCrypt::Engine.hash_secret(params[:confirm_token], token_salt)
+          elsif !token_check
             flash[:errors] = 'Incorrect confirmation code.'
             redirect back
-          elsif @new_user.confirm_signup
-            clear_signup_confirmation_tokens(url_token: signup_confirmation_url_token)
+          end
+
+          if @new_user.confirm_signup
+            clear_signup_confirmation_tokens(url_token: params[:url_token])
             flash[:alerts] = 'Your account has been confirmed successfully!'
             redirect '/login'
           else
-            flash[:errors] = 'Sorry, we ran into a technical error saving your account confirmation! Please try '\
-              "again, and if it happens again, contact #{settings.support_email}."
+            flash[:errors] = 'Technical issue confirming newly signed-up user, '\
+              "please contact #{settings.support_email}."
             redirect back
           end
         end
@@ -141,8 +141,11 @@ module Routes
         end
 
         post '/resend_signup_confirmation' do
-          check_time = Time.now
-          @new_user = User.find_by(email: params[:email])&.destroy_and_disregard_unconfirmed_stale(check_time)
+          now = Time.now
+          User.destroy_unconfirmed_stale_by_username(params[:username], as_of: now)
+          User.destroy_unconfirmed_stale_by_email(params[:email], as_of: now)
+          @new_user = User.find_by(email: params[:email])
+
           if @new_user.nil?
             flash[:errors] = "The user with email with #{params[:email]} was not found. If you signed up more than "\
               "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for "\
@@ -155,7 +158,7 @@ module Routes
           elsif @new_user.confirmed?(check_time)
             flash[:alerts] = 'Your account has already been confirmed!'
             redirect '/login'
-          elsif settings.redis_client.get("signup_confirmation_email:#{@new_user.username}")
+          elsif recent_signup_confirmation_email(username: @new_user.username)
             flash[:alerts] = "A confirmation email has already been sent recently to #{params[:email]}. Please double-"\
               "check your email, including spam filters and other folders, and request another if it doesn't show up. "\
               "If you continue not to receive the confirmation email, contact #{settings.support_email}."

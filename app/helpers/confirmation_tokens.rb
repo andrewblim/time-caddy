@@ -44,6 +44,23 @@ module Helpers
       { confirm_token: signup_token, url_token: signup_url_token }
     end
 
+    def recent_signup_confirmation_email(username:, redis_client: settings.redis_client)
+      redis_client.get("signup_confirmation_email:#{username}")
+    end
+
+    def get_username_from_signup_confirmation(url_token:, redis_client: settings.redis_client)
+      redis_client.get("signup_confirmation_url_token:#{url_token}")
+    end
+
+    def check_signup_confirmation_confirm_token(username:, confirm_token:, redis_client: settings.redis_client)
+      token_hash, token_salt = redis_client.mget(
+        "signup_confirmation_token_hash:#{username}",
+        "signup_confirmation_token_salt:#{username}",
+      )
+      return nil unless token_hash && token_salt
+      token_hash == BCrypt::Engine.hash_secret(confirm_token, token_salt)
+    end
+
     def clear_signup_confirmation_tokens(url_token:, redis_client: settings.redis_client)
       username = redis_client.get("signup_confirmation_url_token:#{url_token}")
       redis_client.del("signup_confirmation_url_token:#{url_token}")

@@ -15,7 +15,11 @@ RSpec.describe User do
   end
 
   it 'disallows users with bad email addresses' do
-    expect { create(:user, username: 'test', email: 'not_an_email') }.to raise_error ActiveRecord::RecordInvalid
+    expect { create(:user, email: 'not_an_email') }.to raise_error ActiveRecord::RecordInvalid
+  end
+
+  it 'disallows users with bad time zones' do
+    expect { create(:user, default_tz: 'not_a_tz') }.to raise_error ActiveRecord::RecordInvalid
   end
 
   it 'creates password hashes and salts for new users' do

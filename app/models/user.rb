@@ -10,9 +10,9 @@ class User < ActiveRecord::Base
   has_many :password_reset_requests
   has_many :log_entries
 
-  validates :username, uniqueness: true
-  validates :email, uniqueness: true
-  validates :email, email: true
+  validates :username, uniqueness: true, length: { minimum: 1, maximum: 40 }
+  validates :email, uniqueness: true, email: true, length: { minimum: 1, maximum: 60 }
+  validate :default_tz_is_valid
 
   def self.find_by_username_or_email(username_or_email)
     if EmailValidator.valid?(username_or_email)
@@ -89,5 +89,15 @@ class User < ActiveRecord::Base
 
   def enable
     update(disabled: false)
+  end
+
+  private
+
+  def default_tz_is_valid
+    begin
+      TZInfo::Timezone.get(default_tz)
+    rescue TZInfo::InvalidTimezoneIdentifier
+      errors.add(:default_tz, "Time zone #{default_tz} not recognized as a valid time zone")
+    end
   end
 end

@@ -107,9 +107,7 @@ module Routes
             redirect back
           end
 
-          password_salt = BCrypt::Engine.generate_salt
-          password_hash = BCrypt::Engine.hash_secret(params[:new_password], password_salt)
-          if user.update(password_hash: password_hash, password_salt: password_salt)
+          if user.reset_password(password: params[:new_password])
             reset_request.update(active: false)
             flash[:alerts] = 'Your password has been successfully reset.'
             redirect '/login'

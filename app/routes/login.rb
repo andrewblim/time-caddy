@@ -24,7 +24,7 @@ module Routes
               'instructions in the email that was sent to you, or <a href="/resend_signup_confirmation">request '\
               'a new confirmation email</a> if needed.'
             redirect back
-          elsif user.password_hash != BCrypt::Engine.hash_secret(params[:password], user.password_salt)
+          elsif !user.check_password(params[:password])
             flash[:errors] = 'Wrong username/password combination'
             redirect back
           else

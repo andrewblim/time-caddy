@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'bcrypt'
 require 'email_validator'
 
 class User < ActiveRecord::Base
@@ -9,12 +10,33 @@ class User < ActiveRecord::Base
   has_many :password_reset_requests
   has_many :log_entries
 
+  validates :username, uniqueness: true
+  validates :email, uniqueness: true
+  validates :email, email: true
+
   def self.find_by_username_or_email(username_or_email)
     if EmailValidator.valid?(username_or_email)
       find_by(email: username_or_email)
     else
       find_by(username: username_or_email)
     end
+  end
+
+  def self.create_with_salted_password(**kwargs)
+    return false unless kwargs[:password].is_a?(String)
+    kwargs[:password_salt] ||= BCrypt::Engine.generate_salt
+    kwargs[:password_hash] = BCrypt::Engine.hash_secret(kwargs[:password], kwargs[:password_salt])
+    create(**kwargs.except(:password))
+  end
+
+  def reset_password(password:, salt: BCrypt::Engine.generate_salt)
+    password_salt = salt
+    password_hash = BCrypt::Engine.hash_secret(password, salt)
+    save
+  end
+
+  def check_password(password)
+    password_hash == BCrypt::Engine.hash_secret(password, password_salt)
   end
 
   # User signup states:

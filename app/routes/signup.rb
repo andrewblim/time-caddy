@@ -71,13 +71,10 @@ module Routes
           end
 
           # Create user, generate tokens, send email
-          password_salt = BCrypt::Engine.generate_salt
-          password_hash = BCrypt::Engine.hash_secret(params[:password], password_salt)
-          @new_user = User.create(
+          @new_user = User.create_with_salted_password(
             username: params[:username],
             email: params[:email],
-            password_hash: password_hash,
-            password_salt: password_salt,
+            password: params[:password],
             signup_time: Time.now.utc,
             signup_confirmation_time: nil,
             disabled: false,
@@ -89,10 +86,10 @@ module Routes
             redirect back
             return
           end
+
           tokens = create_signup_confirmation_tokens(username: @new_user.username)
           @signup_confirmation_token = tokens[:confirm_token]
           @signup_confirmation_url_token = tokens[:url_token]
-
           if @signup_confirmation_token && @signup_confirmation_url_token
             @signup_confirmation_url = build_url(
               request,

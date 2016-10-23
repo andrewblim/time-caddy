@@ -23,31 +23,31 @@ RSpec.describe User do
   end
 
   it 'creates password hashes and salts for new users' do
-    user = described_class.create_with_salted_password(
+    user = described_class.new_with_salted_password(
       username: 'test',
       email: 'test@test.com',
       password: 'foo',
+      disabled: false,
       default_tz: 'America/New_York',
       signup_time: Time.now.utc,
-      disabled: false
     )
     expect(user).to be_a(described_class)
-    expect(user.password_hash).not_to be_blank
-    expect(user.password_salt).not_to be_blank
+    expect(user.save).to be true
     expect(user.check_password('foo')).to be true
     expect(user.check_password('foo2')).to be false
 
     custom_salt = BCrypt::Engine.generate_salt
-    user = described_class.create_with_salted_password(
+    user = described_class.new_with_salted_password(
       username: 'test2',
       email: 'test2@test.com',
       password: 'foo',
       password_salt: custom_salt,
+      disabled: false,
       default_tz: 'America/New_York',
       signup_time: Time.now.utc,
-      disabled: false
     )
     expect(user).to be_a(described_class)
+    expect(user.save).to be true
     expect(user.password_salt).to eq(custom_salt)
     expect(user.check_password('foo')).to be true
     expect(user.check_password('foo2')).to be false

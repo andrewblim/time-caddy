@@ -11,6 +11,10 @@ class User < ActiveRecord::Base
   has_many :log_entries
 
   validates :username, uniqueness: true, length: { minimum: 1, maximum: 40 }
+  validates :username, format: {
+    with: /[-_0-9A-Za-z]+/,
+    message: 'can only contain alphanumerics, hyphens, and underscores',
+  }
   validates :email, uniqueness: true, email: true, length: { minimum: 1, maximum: 60 }
   validate :default_tz_is_valid
 
@@ -22,16 +26,26 @@ class User < ActiveRecord::Base
     end
   end
 
-  def self.create_with_salted_password(**kwargs)
+  def self.new_with_salted_password(**kwargs)
     return false unless kwargs[:password].is_a?(String)
     kwargs[:password_salt] ||= BCrypt::Engine.generate_salt
     kwargs[:password_hash] = BCrypt::Engine.hash_secret(kwargs[:password], kwargs[:password_salt])
-    create(**kwargs.except(:password))
+    new(**kwargs.except(:password))
+  end
+
+  def self.destroy_unconfirmed_stale_by_username(username, as_of: Time.now)
+    user = find_by(username: username)
+    user.destroy if user.unconfirmed_stale?(as_of)
+  end
+
+  def self.destroy_unconfirmed_stale_by_email(email, as_of: Time.now)
+    user = find_by(email: email)
+    user.destroy if user.unconfirmed_stale?(as_of)
   end
 
   def reset_password(password:, salt: BCrypt::Engine.generate_salt)
-    password_salt = salt
-    password_hash = BCrypt::Engine.hash_secret(password, salt)
+    self.password_salt = salt
+    self.password_hash = BCrypt::Engine.hash_secret(password, salt)
     save
   end
 
@@ -94,10 +108,8 @@ class User < ActiveRecord::Base
   private
 
   def default_tz_is_valid
-    begin
-      TZInfo::Timezone.get(default_tz)
-    rescue TZInfo::InvalidTimezoneIdentifier
-      errors.add(:default_tz, "Time zone #{default_tz} not recognized as a valid time zone")
-    end
+    TZInfo::Timezone.get(default_tz)
+  rescue TZInfo::InvalidTimezoneIdentifier
+    errors.add(:default_tz, "#{default_tz} not recognized as a valid time zone")
   end
 end

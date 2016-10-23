@@ -14,55 +14,25 @@ module Routes
         end
 
         post '/signup' do
-          # verify that the form was filled out reasonably
+          now = Time.now
+          User.destroy_unconfirmed_stale_by_username(params[:username], as_of: now)
+          User.destroy_unconfirmed_stale_by_email(params[:email], as_of: now)
+          @new_user = User.new_with_salted_password(
+            username: params[:username],
+            email: params[:email],
+            password: params[:password],
+            disabled: false,
+            default_tz: params[:default_tz],
+            signup_time: now,
+            signup_confirmation_time: nil,
+          )
+
           signup_errors = []
-          if !params[:username].length.between?(1, 40)
-            signup_errors << 'Your username must be 1-40 characters long.'
-          elsif params[:username] !~ /^[-_0-9A-Za-z]+$/
-            signup_errors << 'Your username must consist solely of alphanumeric characters, underscores, or hyphens.'
+          unless @new_user.valid?
+            signup_errors << @new_user.errors.full_messages
           end
-          if !params[:email].length.between?(1, 60)
-            signup_errors << 'Your email address must be 1-60 characters long.'
-          elsif !EmailValidator.valid?(params[:email])
-            signup_errors << 'Your email address was not recognized as a valid address.'
-          end
-          if params[:password].length < 6
+          unless params[:password].length >= 6
             signup_errors << 'Your password must be at least 6 characters long.'
-          end
-
-          # this shouldn't happen if the tz form is working properly, but just in case
-          begin
-            TZInfo::Timezone.get(params[:default_tz])
-          rescue TZInfo::InvalidTimezoneIdentifier
-            signup_errors << "The timezone #{params[:default_tz]} was not recognized as a valid tz timezone."
-          end
-
-          # don't even bother hitting the database if we have errors at this point
-          unless signup_errors.blank?
-            flash[:errors] = signup_errors
-            redirect back
-            return
-          end
-
-          # If the user already exists and is not stale, redirect back with a helpful
-          # flash error. If the user exists but is stale, destroy it.
-          check_time = Time.now
-          if (user = User.find_by(username: params[:username])&.destroy_and_disregard_unconfirmed_stale(check_time))
-            if user.confirmed?(check_time)
-              signup_errors << "There is already a user with username #{params[:username]}."
-            elsif user.unconfirmed_fresh?(check_time)
-              signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up "\
-                'recently. If this is you and you need the confirmation email to be resent, '\
-                '<a href="/resend_signup_confirmation">click here</a>.'
-            end
-          elsif (user = User.find_by(email: params[:email])&.destroy_and_disregard_unconfirmed_stale(check_time))
-            if user.confirmed?(check_time)
-              signup_errors << "There is already a user with email #{params[:email]}."
-            elsif user.unconfirmed_fresh?(check_time)
-              signup_errors << "There is already a not-yet-confirmed user #{params[:username]} who signed up "\
-                'recently. If this is you and you need the confirmation email to be resent, '\
-                '<a href="/resend_signup_confirmation">click here</a>.'
-            end
           end
           unless signup_errors.blank?
             flash[:errors] = signup_errors
@@ -71,16 +41,7 @@ module Routes
           end
 
           # Create user, generate tokens, send email
-          @new_user = User.create_with_salted_password(
-            username: params[:username],
-            email: params[:email],
-            password: params[:password],
-            signup_time: Time.now.utc,
-            signup_confirmation_time: nil,
-            disabled: false,
-            default_tz: params[:default_tz],
-          )
-          unless @new_user
+          unless @new_user.save
             flash[:errors] = 'Technical issue saving the new user to the database, please contact '\
               "#{settings.support_email}."
             redirect back

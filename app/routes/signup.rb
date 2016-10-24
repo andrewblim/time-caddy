@@ -1,6 +1,4 @@
 # frozen_string_literal: true
-require 'bcrypt'
-require 'email_validator'
 
 module Routes
   module Signup

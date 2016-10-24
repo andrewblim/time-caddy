@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require 'spec_helper'
+require 'bcrypt'
 
 RSpec.describe User do
   it 'disallows two users with the same username' do

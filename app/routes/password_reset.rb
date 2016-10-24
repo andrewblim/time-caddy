@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-require 'bcrypt'
 
 module Routes
   module PasswordReset
@@ -33,29 +32,15 @@ module Routes
             redirect back
           else
             @password_reset_token = SecureRandom.hex(16)
-            password_reset_token_salt = BCrypt::Engine.generate_salt
-            password_reset_token_hash = BCrypt::Engine.hash_secret(@password_reset_token, password_reset_token_salt)
-
-            reset_request = PasswordResetRequest.transaction do
-              loop do
-                @password_reset_url_token = SecureRandom.hex(16)
-                break unless PasswordResetRequest.find_by(password_reset_url_token: @password_reset_url_token)
-              end
-              @password_reset_user.password_reset_requests.update_all(active: false)
-              @password_reset_user.password_reset_requests.create(
-                request_time: Time.now,
-                password_reset_token_hash: password_reset_token_hash,
-                password_reset_token_salt: password_reset_token_salt,
-                password_reset_url_token: @password_reset_url_token,
-                active: true,
-              )
-            end
-
-            if reset_request.nil?
+            reset_request = PasswordResetRequest.create_with_tokens_for(
+              user: @password_reset_user,
+              confirm_token: @password_reset_token,
+            )
+            if reset_request
               @password_reset_url = build_url(
                 request,
                 path: '/password_reset',
-                query: "url_token=#{@password_reset_url_token}",
+                query: "url_token=#{reset_request.password_reset_url_token}",
               )
               mail(
                 to: @password_reset_user.email,
@@ -97,11 +82,8 @@ module Routes
             redirect '/login'
             return
           end
-          submitted_token_hash = BCrypt::Engine.hash_secret(
-            params[:confirm_token],
-            reset_request.password_reset_token_salt,
-          )
-          if reset_request.password_reset_token_hash != submitted_token_hash
+
+          unless reset_request.check_token(params[:confirm_token])
             reset_request.update(active: false)
             flash[:errors] = 'Invalid password reset confirmation code.'
             redirect back
@@ -112,7 +94,8 @@ module Routes
             flash[:alerts] = 'Your password has been successfully reset.'
             redirect '/login'
           else
-            flash[:errors] = "Technical issue resetting password, please contact #{settings.support_email}."
+            flash[:errors] = 'Technical issue resetting password, please contact '\
+              "#{settings.support_email}."
             redirect back
           end
         end

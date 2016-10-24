@@ -4,11 +4,16 @@ require 'redis'
 
 module Helpers
   module ConfirmationTokens
-    def create_signup_confirmation_tokens(username:, redis_client: settings.redis_client)
-      signup_token = SecureRandom.hex(16)
-      signup_token_salt = BCrypt::Engine.generate_salt
-      signup_token_hash = BCrypt::Engine.hash_secret(signup_token, signup_token_salt)
-      signup_url_token = nil
+    # signup_confirmation: generates a set of Redis-based tokens that get sent
+    # out in an email, and also adds a lock-like Redis token to check whether
+    # such an email was generated recently
+
+    def create_signup_confirmation_tokens(username:, confirm_token: SecureRandom.hex(16),
+                                          confirm_token_salt: BCrypt::Engine.generate_salt,
+                                          redis_client: settings.redis_client)
+                                          
+      confirm_token_hash = BCrypt::Engine.hash_secret(confirm_token, confirm_token_salt)
+      url_token = nil
 
       redis_client.multi do
         redis_client.set(
@@ -18,30 +23,30 @@ module Helpers
         )
         loop do
           # collisions not permissible
-          signup_url_token = SecureRandom.hex(16)
+          url_token = SecureRandom.hex(16)
           set_status = redis_client.setnx(
-            "signup_confirmation_url_token:#{signup_url_token}",
+            "signup_confirmation_url_token:#{url_token}",
             username,
           )
           expire_status = redis_client.expire(
-            "signup_confirmation_url_token:#{signup_url_token}",
+            "signup_confirmation_url_token:#{url_token}",
             User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
           )
           break if set_status && expire_status
         end
         redis_client.set(
           "signup_confirmation_token_hash:#{username}",
-          signup_token_hash,
+          confirm_token_hash,
           ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
         )
         redis_client.set(
           "signup_confirmation_token_salt:#{username}",
-          signup_token_salt,
+          confirm_token_salt,
           ex: User::SIGNUP_CONFIRMATION_LIFESPAN_IN_SEC,
         )
       end
 
-      { confirm_token: signup_token, url_token: signup_url_token }
+      { confirm_token: confirm_token, url_token: signup_url_token }
     end
 
     def recent_signup_confirmation_email(username:, redis_client: settings.redis_client)

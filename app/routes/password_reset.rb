@@ -9,9 +9,10 @@ module Routes
         end
 
         post '/password_reset_request' do
-          check_time = Time.now
+          now = Time.now
+          User.destroy_unconfirmed_stale_by_email(params[:email], as_of: now)
+
           @password_reset_user = User.find_by(email: params[:email])
-            &.destroy_and_disregard_unconfirmed_stale(check_time)
           if @password_reset_user.nil?
             flash[:errors] = "No user with email #{params[:email]} was found. If you signed up more than "\
               "#{User::INACTIVE_ACCOUNT_LIFESPAN_IN_DAYS} days ago, your signup may have been deleted; for "\

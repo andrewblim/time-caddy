@@ -35,12 +35,12 @@ class User < ActiveRecord::Base
 
   def self.destroy_unconfirmed_stale_by_username(username, as_of: Time.now)
     user = find_by(username: username)
-    user.destroy if user.unconfirmed_stale?(as_of)
+    user.destroy if user&.unconfirmed_stale?(as_of)
   end
 
   def self.destroy_unconfirmed_stale_by_email(email, as_of: Time.now)
     user = find_by(email: email)
-    user.destroy if user.unconfirmed_stale?(as_of)
+    user.destroy if user&.unconfirmed_stale?(as_of)
   end
 
   def reset_password(password:, salt: BCrypt::Engine.generate_salt)
@@ -83,13 +83,6 @@ class User < ActiveRecord::Base
   def confirm_signup!(as_of = Time.now)
     raise 'User already confirmed' if confirmed?(as_of)
     update!(signup_confirmation_time: as_of)
-  end
-
-  # Convenience, as unconfirmed_stale users are destroyed at first opportunity
-  def destroy_and_disregard_unconfirmed_stale(as_of = Time.now)
-    return self unless unconfirmed_stale?(as_of)
-    destroy
-    nil
   end
 
   # Used to stop too many password reset requests from happening at once

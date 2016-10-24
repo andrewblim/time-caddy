@@ -10,8 +10,9 @@ module Routes
 
         post '/login' do
           now = Time.now
-          User.destroy_unconfirmed_stale_by_username(params[:username], as_of: now)
-          User.destroy_unconfirmed_stale_by_email(params[:email], as_of: now)
+          User.destroy_unconfirmed_stale_by_username(params[:username_or_email], as_of: now)
+          User.destroy_unconfirmed_stale_by_email(params[:username_or_email], as_of: now)
+          
           if user.nil?
             flash[:errors] = "No username or email address was found matching #{params[:username_or_email]}."
             redirect '/login'

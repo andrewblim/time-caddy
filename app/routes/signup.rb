@@ -89,8 +89,7 @@ module Routes
           end
 
           now = Time.now
-          User.destroy_unconfirmed_stale_by_username(params[:username], as_of: now)
-          User.destroy_unconfirmed_stale_by_email(params[:email], as_of: now)
+          User.destroy_unconfirmed_stale_by_username(username, as_of: now)
           @new_user = User.find_by(username: username)
           if @new_user.nil?
             flash[:errors] = 'Technical issue retrieving user from confirmation email, '\
@@ -140,7 +139,6 @@ module Routes
 
         post '/resend_signup_confirmation' do
           now = Time.now
-          User.destroy_unconfirmed_stale_by_username(params[:username], as_of: now)
           User.destroy_unconfirmed_stale_by_email(params[:email], as_of: now)
           @new_user = User.find_by(email: params[:email])
 

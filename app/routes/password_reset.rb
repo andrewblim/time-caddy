@@ -90,7 +90,7 @@ module Routes
             redirect back
           end
 
-          if user.reset_password(password: params[:new_password])
+          if user.change_password(password: params[:new_password])
             reset_request.update(active: false)
             flash[:alerts] = 'Your password has been successfully reset.'
             redirect '/login'

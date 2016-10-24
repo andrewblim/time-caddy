@@ -43,7 +43,7 @@ class User < ActiveRecord::Base
     user.destroy if user&.unconfirmed_stale?(as_of)
   end
 
-  def reset_password(password:, salt: BCrypt::Engine.generate_salt)
+  def change_password(password, salt: BCrypt::Engine.generate_salt)
     self.password_salt = salt
     self.password_hash = BCrypt::Engine.hash_secret(password, salt)
     save
@@ -75,14 +75,9 @@ class User < ActiveRecord::Base
     !signup_confirmation_time.nil? && signup_confirmation_time <= as_of
   end
 
-  def confirm_signup(as_of = Time.now)
+  def confirm(as_of = Time.now)
     return false if confirmed?(as_of)
     update(signup_confirmation_time: as_of)
-  end
-
-  def confirm_signup!(as_of = Time.now)
-    raise 'User already confirmed' if confirmed?(as_of)
-    update!(signup_confirmation_time: as_of)
   end
 
   # Used to stop too many password reset requests from happening at once

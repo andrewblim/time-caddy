@@ -122,7 +122,7 @@ module Routes
             redirect back
           end
 
-          if @new_user.confirm_signup
+          if @new_user.confirm
             clear_signup_confirmation_tokens(url_token: params[:url_token])
             flash[:alerts] = 'Your account has been confirmed successfully!'
             redirect '/login'
